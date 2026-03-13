@@ -2,13 +2,18 @@ import React, { useState } from 'react'
 import { Button, SafeAreaView, Text, TextInput, View } from 'react-native'
 import { useAuthViewModel } from '../../viewmodels/useSignupLoginViewModel'
 
-export const AuthScreen = () => {
-    const { loading, error, message, signupOwner, login } = useAuthViewModel()
+export const AuthScreen = ({ onLogin }: { onLogin: (token: string) => void }) => {
+    const { loading, error, message, signupOwner, login, token } = useAuthViewModel()
     const [mode, setMode] = useState<'login' | 'signup'>('signup')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [fullName, setFullName] = useState('')
     const [organizationName, setOrganizationName] = useState('')
+    const [cvr, setCvr] = useState('')
+
+    React.useEffect(() => {
+        if (token) onLogin(token)
+    }, [token, onLogin])
 
     const submit = async () => {
         if (mode === 'signup') {
@@ -17,6 +22,7 @@ export const AuthScreen = () => {
                 password,
                 fullName,
                 organizationName,
+                cvr,
                 currency: 'DKK',
                 fiscalYearStart: 1,
             })
@@ -138,6 +144,22 @@ export const AuthScreen = () => {
                             }}
                             value={organizationName}
                             onChangeText={setOrganizationName}
+                        />
+
+                        <TextInput
+                            placeholder="CVR (valgfrit)"
+                            placeholderTextColor="#9ca3af"
+                            style={{
+                                borderWidth: 1,
+                                borderColor: '#d1d5db',
+                                borderRadius: 10,
+                                paddingHorizontal: 14,
+                                paddingVertical: 12,
+                                color: '#111827',
+                                backgroundColor: '#ffffff',
+                            }}
+                            value={organizationName}
+                            onChangeText={setCvr}
                         />
                     </View>
                 )}

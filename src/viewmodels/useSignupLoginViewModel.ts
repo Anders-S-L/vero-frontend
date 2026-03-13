@@ -29,6 +29,7 @@ export const useAuthViewModel = () => {
     }
   }
 
+  const [token, setToken] = useState<string | null>(null)
   const login = async (input: { email: string; password: string }) => {
     setLoading(true)
     setError(null)
@@ -37,6 +38,7 @@ export const useAuthViewModel = () => {
     try {
       const data = await authModel.login(input)
       setMessage(`Login OK. User ID: ${data.userId}`)
+      setToken(data.accessToken)
       // Gem token i SecureStore/Keychain i rigtig app.
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login fejlede')
@@ -51,5 +53,6 @@ export const useAuthViewModel = () => {
     message,
     signupOwner,
     login,
+    token
   }
 }
