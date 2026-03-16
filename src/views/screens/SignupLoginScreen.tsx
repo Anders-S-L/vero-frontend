@@ -132,7 +132,7 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationN
                         />
 
                         <TextInput
-                            placeholder="Organization name"
+                            placeholder="Organisation name"
                             placeholderTextColor="#9ca3af"
                             style={{
                                 borderWidth: 1,
@@ -159,7 +159,7 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationN
                                 color: '#111827',
                                 backgroundColor: '#ffffff',
                             }}
-                            value={organisationName}
+                            value={cvr}
                             onChangeText={setCvr}
                         />
                     </View>

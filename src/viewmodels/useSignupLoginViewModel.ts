@@ -23,6 +23,7 @@ export const useAuthViewModel = () => {
     try {
       const data = await authModel.signupOwner(input)
       setMessage(`Bruger oprettet. Org ID: ${data.organisationId}`)
+      await login({ email: input.email, password: input.password }) // Auto-login efter signup
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Signup fejlede')
     } finally {
