@@ -6,8 +6,9 @@ import {
 import { CategoryType } from '../../models/categoryModel'
 import { useCategoryViewModel } from '../../viewmodels/useCategoryViewModel'
 import { useOrganisationViewModel } from '../../viewmodels/useOrganisationViewModel'
+import { useTransactionViewModel } from '../../viewmodels/useTransactionViewModel'
 
-export default function OrganisationScreen({ token }: { token: string }) {
+export default function OrganisationScreen({ token, organisationName }: { token: string; organisationName: string }) {
     const { departments, isLoading, error, addDepartment } = useOrganisationViewModel(token)
     const [deptName, setDeptName] = useState('')
     const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null)
@@ -20,7 +21,7 @@ export default function OrganisationScreen({ token }: { token: string }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.title}>Min organisation</Text>
+            <Text style={styles.title}>{organisationName}</Text>
             <Text style={styles.subtitle}>Afdelinger</Text>
 
             <View style={styles.row}>
@@ -68,6 +69,7 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
     const { categories, isLoading, error, addCategory } = useCategoryViewModel(token, departmentId)
     const [name, setName] = useState('')
     const [type, setType] = useState<CategoryType>('expense')
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
 
     const types: CategoryType[] = ['income', 'expense', 'tax', 'depreciation']
 
@@ -79,7 +81,7 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
 
     return (
         <View style={styles.categorySection}>
-            <Text style={styles.categoryTitle}>Kategorier</Text>
+            <Text style={styles.sectionTitle}>Kategorier</Text>
 
             <View style={styles.typeRow}>
                 {types.map(t => (
@@ -110,11 +112,81 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
             {isLoading
                 ? <ActivityIndicator />
                 : categories.map(cat => (
-                    <View key={cat.id} style={styles.categoryItem}>
-                        <Text style={styles.itemText}>{cat.name}</Text>
-                        <Text style={styles.typeTag}>{cat.type}</Text>
+                    <View key={cat.id}>
+                        <TouchableOpacity
+                            style={[styles.item, selectedCategoryId === cat.id && styles.itemSelected]}
+                            onPress={() => setSelectedCategoryId(selectedCategoryId === cat.id ? null : cat.id)}
+                        >
+                            <Text style={styles.itemText}>{cat.name}</Text>
+                            <Text style={styles.typeTag}>{cat.type}</Text>
+                        </TouchableOpacity>
+
+                        {selectedCategoryId === cat.id && (
+                            <TransactionSection token={token} categoryId={cat.id} />
+                        )}
                     </View>
                 ))
+            }
+        </View>
+    )
+}
+
+function TransactionSection({ token, categoryId }: { token: string; categoryId: string }) {
+    const { transactions, isLoading, error, addTransaction } = useTransactionViewModel(token, categoryId)
+    const [amount, setAmount] = useState('')
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+    const [description, setDescription] = useState('')
+
+    const handleAdd = async () => {
+        if (!amount.trim()) return
+        await addTransaction(parseFloat(amount), date, description || null)
+        setAmount('')
+        setDescription('')
+    }
+
+    return (
+        <View style={styles.transactionSection}>
+            <Text style={styles.sectionTitle}>Transaktioner</Text>
+
+            <TextInput
+                style={[styles.input, { marginBottom: 8 }]}
+                placeholder="Beløb"
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+            />
+            <TextInput
+                style={[styles.input, { marginBottom: 8 }]}
+                placeholder="Dato (YYYY-MM-DD)"
+                value={date}
+                onChangeText={setDate}
+            />
+            <TextInput
+                style={[styles.input, { marginBottom: 8 }]}
+                placeholder="Beskrivelse (valgfrit)"
+                value={description}
+                onChangeText={setDescription}
+            />
+
+            <TouchableOpacity style={[styles.button, { marginBottom: 12 }]} onPress={handleAdd}>
+                <Text style={styles.buttonText}>Tilføj transaktion</Text>
+            </TouchableOpacity>
+
+            {error && <Text style={styles.error}>{error}</Text>}
+
+            {isLoading
+                ? <ActivityIndicator />
+                : transactions.length === 0
+                    ? <Text style={styles.empty}>Ingen transaktioner endnu</Text>
+                    : transactions.map(t => (
+                        <View key={t.id} style={styles.transactionItem}>
+                            <View>
+                                <Text style={styles.itemText}>{t.description || 'Ingen beskrivelse'}</Text>
+                                <Text style={styles.dateText}>{t.date}</Text>
+                            </View>
+                            <Text style={styles.amountText}>{t.amount} kr</Text>
+                        </View>
+                    ))
             }
         </View>
     )
@@ -132,7 +204,7 @@ const styles = StyleSheet.create({
     },
     button: {
         backgroundColor: '#111827', borderRadius: 10,
-        paddingHorizontal: 16, justifyContent: 'center'
+        paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center'
     },
     buttonText: { color: '#fff', fontWeight: '600' },
     error: { color: '#b91c1c', marginBottom: 12 },
@@ -143,23 +215,29 @@ const styles = StyleSheet.create({
     itemSelected: { backgroundColor: '#e5e7eb' },
     itemText: { fontSize: 15, color: '#111827' },
     chevron: { color: '#6b7280' },
-    empty: { color: '#9ca3af', textAlign: 'center', marginTop: 40 },
+    empty: { color: '#9ca3af', textAlign: 'center', marginTop: 8 },
     categorySection: {
-        backgroundColor: '#f9fafb', padding: 12,
+        backgroundColor: '#f0f2f5', padding: 12,
         borderRadius: 10, marginBottom: 8, marginLeft: 8
     },
-    categoryTitle: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+    transactionSection: {
+        backgroundColor: '#e8eaf0', padding: 12,
+        borderRadius: 10, marginBottom: 8, marginLeft: 16
+    },
+    sectionTitle: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
     typeRow: { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
     typeBtn: {
         paddingHorizontal: 10, paddingVertical: 6,
-        borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db'
+        borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff'
     },
     typeBtnActive: { backgroundColor: '#111827', borderColor: '#111827' },
     typeBtnText: { fontSize: 12, color: '#374151' },
     typeBtnTextActive: { color: '#fff' },
-    categoryItem: {
+    typeTag: { fontSize: 12, color: '#6b7280' },
+    transactionItem: {
         flexDirection: 'row', justifyContent: 'space-between',
         padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 4
     },
-    typeTag: { fontSize: 12, color: '#6b7280' }
+    dateText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+    amountText: { fontSize: 15, fontWeight: '600', color: '#111827' }
 })

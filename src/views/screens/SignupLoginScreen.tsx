@@ -2,18 +2,19 @@ import React, { useState } from 'react'
 import { Button, SafeAreaView, Text, TextInput, View } from 'react-native'
 import { useAuthViewModel } from '../../viewmodels/useSignupLoginViewModel'
 
-export const AuthScreen = ({ onLogin }: { onLogin: (token: string) => void }) => {
-    const { loading, error, message, signupOwner, login, token } = useAuthViewModel()
+export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationName: string) => void }) => {
+    const { loading, error, message, signupOwner, login, token, organisationName: orgName } = useAuthViewModel()
     const [mode, setMode] = useState<'login' | 'signup'>('signup')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [fullName, setFullName] = useState('')
-    const [organizationName, setOrganizationName] = useState('')
+    const [organisationName, setOrganisationName] = useState('')
+
     const [cvr, setCvr] = useState('')
 
     React.useEffect(() => {
-        if (token) onLogin(token)
-    }, [token, onLogin])
+        if (token) onLogin(token, orgName ?? '')
+    }, [token, onLogin, orgName])
 
     const submit = async () => {
         if (mode === 'signup') {
@@ -21,7 +22,7 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string) => void }) =>
                 email,
                 password,
                 fullName,
-                organizationName,
+                organisationName,
                 cvr,
                 currency: 'DKK',
                 fiscalYearStart: 1,
@@ -142,8 +143,8 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string) => void }) =>
                                 color: '#111827',
                                 backgroundColor: '#ffffff',
                             }}
-                            value={organizationName}
-                            onChangeText={setOrganizationName}
+                            value={organisationName}
+                            onChangeText={setOrganisationName}
                         />
 
                         <TextInput
@@ -158,7 +159,7 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string) => void }) =>
                                 color: '#111827',
                                 backgroundColor: '#ffffff',
                             }}
-                            value={organizationName}
+                            value={organisationName}
                             onChangeText={setCvr}
                         />
                     </View>

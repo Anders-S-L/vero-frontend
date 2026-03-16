@@ -1,0 +1,18 @@
+import { getJson, postJsonAuth } from '../api/client'
+
+export type Transaction = {
+    id: string
+    category_id: string
+    amount: number
+    date: string
+    description: string | null
+    created_at: string
+}
+
+export const transactionModel = {
+    getTransactions: (token: string) =>
+        getJson<Transaction[]>('/transactions', token),
+
+    createTransaction: (token: string, amount: number, date: string, category_id: string, description: string | null) =>
+        postJsonAuth<Transaction>('/transactions', { amount, date, category_id, description }, token)
+}

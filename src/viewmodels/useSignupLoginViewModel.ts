@@ -5,12 +5,13 @@ export const useAuthViewModel = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [organisationName, setOrganisationName] = useState<string | null>(null)
 
   const signupOwner = async (input: {
     email: string
     password: string
     fullName: string
-    organizationName: string
+    organisationName: string
     cvr?: string
     currency: string
     fiscalYearStart: number
@@ -21,7 +22,7 @@ export const useAuthViewModel = () => {
 
     try {
       const data = await authModel.signupOwner(input)
-      setMessage(`Bruger oprettet. Org ID: ${data.organizationId}`)
+      setMessage(`Bruger oprettet. Org ID: ${data.organisationId}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Signup fejlede')
     } finally {
@@ -37,8 +38,11 @@ export const useAuthViewModel = () => {
 
     try {
       const data = await authModel.login(input)
+      console.log('login data:', data)
+
       setMessage(`Login OK. User ID: ${data.userId}`)
       setToken(data.accessToken)
+      setOrganisationName(data.organisationName)
       // Gem token i SecureStore/Keychain i rigtig app.
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login fejlede')
@@ -53,6 +57,7 @@ export const useAuthViewModel = () => {
     message,
     signupOwner,
     login,
-    token
+    token,
+    organisationName
   }
 }

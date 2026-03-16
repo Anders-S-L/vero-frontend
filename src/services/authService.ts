@@ -3,7 +3,7 @@ import { LoginPayload, RegisterOwnerPayload } from '../types/auth';
 
 export const authService = {
     signupOwner: (input: RegisterOwnerPayload) => {
-        return postJson<{ userId: string; organizationId: string; role: 'admin' }>(
+        return postJson<{ userId: string; organisationId: string; role: 'admin' }>(
             '/auth/register-owner',
             input,
         )
@@ -16,6 +16,7 @@ export const authService = {
             refreshToken: string
             expiresIn: number
             tokenType: string
+            organisationName: string
         }>('/auth/login', input)
     },
 }

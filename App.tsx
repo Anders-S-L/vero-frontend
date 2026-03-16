@@ -4,7 +4,11 @@ import { AuthScreen } from './src/views/screens/SignupLoginScreen'
 
 export default function App() {
   const [token, setToken] = useState<string | null>(null)
+  const [organisationName, setOrganisationName] = useState<string>('')
 
-  if (token) return <OrganisationScreen token={token} />
-  return <AuthScreen onLogin={(t) => setToken(t)} />
+  if (token) return <OrganisationScreen token={token} organisationName={organisationName} />
+  return <AuthScreen onLogin={(t, name) => {
+    setOrganisationName(name)
+    setToken(t)
+  }} />
 }
