@@ -180,5 +180,4 @@ export const typography = theme.typography;
 export const spacing = theme.spacing;
 export const radius = theme.radius;
 export const borderWidth = theme.borderWidth;
-
 export type Theme = typeof theme;
