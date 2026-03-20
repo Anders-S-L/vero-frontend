@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons'
 import React, { useState } from 'react'
 import { StyleSheet, TouchableOpacity, View } from 'react-native'
 import { theme } from '../../constants/theme'
@@ -23,7 +24,11 @@ export const DropdownField = ({ label, options, value, onChange }: Props) => {
                 <AppText variant="p" color={selected ? theme.colors.text.primary : theme.colors.text.light}>
                     {selected ? selected.label : 'Vælg...'}
                 </AppText>
-                <AppText variant="p" color={theme.colors.text.secondary}>{open ? '▲' : '▼'}</AppText>
+                <Ionicons
+                    name={open ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={theme.colors.text.secondary}
+                />
             </TouchableOpacity>
             {open && (
                 <View style={styles.dropdown}>

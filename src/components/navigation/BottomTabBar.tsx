@@ -1,9 +1,15 @@
+import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
 import { StyleSheet, TouchableOpacity, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { AppText } from '../typography/AppText'
 
-type Tab = { key: string; label: string; icon: string }
+type Tab = {
+    key: string
+    label: string
+    icon: keyof typeof Ionicons.glyphMap
+}
 
 type Props = {
     tabs: Tab[]
@@ -11,28 +17,23 @@ type Props = {
     onTabPress: (key: string) => void
 }
 
-export const BottomTabBar = ({ tabs, activeTab, onTabPress }: Props) => (
-    <View style={styles.container}>
-        {tabs.map(tab => (
-            <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onTabPress(tab.key)}>
-                <AppText
-                    variant="p"
-                    style={styles.icon}
-                    color={activeTab === tab.key ? theme.navigation.active : theme.navigation.inactive}
-                >
-                    {tab.icon}
-                </AppText>
-                <AppText
-                    variant="p"
-                    color={activeTab === tab.key ? theme.navigation.active : theme.navigation.inactive}
-                    style={styles.label}
-                >
-                    {tab.label}
-                </AppText>
-            </TouchableOpacity>
-        ))}
-    </View>
-)
+export const BottomTabBar = ({ tabs, activeTab, onTabPress }: Props) => {
+    const insets = useSafeAreaInsets()
+
+    return (
+        <View style={[styles.container, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
+            {tabs.map(tab => {
+                const color = activeTab === tab.key ? theme.navigation.active : theme.navigation.inactive
+                return (
+                    <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onTabPress(tab.key)}>
+                        <Ionicons name={tab.icon} size={24} color={color} />
+                        <AppText variant="p" color={color} style={styles.label}>{tab.label}</AppText>
+                    </TouchableOpacity>
+                )
+            })}
+        </View>
+    )
+}
 
 const styles = StyleSheet.create({
     container: {
@@ -40,9 +41,7 @@ const styles = StyleSheet.create({
         backgroundColor: theme.navigation.background,
         borderTopWidth: theme.borderWidth.thin,
         borderTopColor: theme.navigation.border,
-        paddingBottom: theme.spacing.xl
     },
     tab: { flex: 1, alignItems: 'center', paddingTop: theme.spacing.md },
-    icon: { fontSize: 20, marginBottom: theme.spacing.xs },
-    label: { ...theme.typography.label }
+    label: { ...theme.typography.label, marginTop: theme.spacing.xs }
 })
