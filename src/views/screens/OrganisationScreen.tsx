@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import React, { useState } from 'react'
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertMessage, AppText, BaseModal, BottomTabBar, DropdownField, InputField, PrimaryButton } from '../../components'
 import { theme } from '../../constants/theme'
@@ -26,8 +26,8 @@ export default function OrganisationScreen({ token, organisationName }: { token:
     const insets = useSafeAreaInsets()
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.topHeader}>
+        <View style={styles.container}>
+            <View style={[styles.topHeader, { paddingTop: insets.top + theme.spacing.md }]}>
                 <AppText variant="h4">{organisationName}</AppText>
                 <AppText variant="p" color={theme.colors.text.secondary}>Admin Panel</AppText>
             </View>
@@ -324,16 +324,47 @@ function TransactionSection({ token, categoryId, categoryType }: { token: string
 // ── TRANSAKTIONER TAB ─────────────────────────────────────────────────────────
 function TransaktionerTab({ token }: { token: string }) {
     const { transactions, isLoading } = useTransactionViewModel(token, '')
+    const [searchQuery, setSearchQuery] = useState('')
+
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+    const filteredTransactions = normalizedSearchQuery.length === 0
+        ? transactions
+        : transactions.filter(transaction => {
+            const searchableText = [
+                transaction.description,
+                transaction.date,
+                transaction.categories?.name,
+                transaction.categories?.departments?.name,
+                transaction.amount.toString(),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+
+            return searchableText.includes(normalizedSearchQuery)
+        })
+
 
     return (
         <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
             <AppText variant="h3" style={styles.pageTitle}>Transaktioner</AppText>
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
+                placeholderTextColor={theme.input.placeholder}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+            />
 
             {isLoading
                 ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : transactions.length === 0
-                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>Ingen transaktioner endnu</AppText>
-                    : transactions.map(t => (
+                : filteredTransactions.length === 0
+                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
+                        {transactions.length === 0 ? 'Ingen transaktioner endnu' : 'Ingen transaktioner matcher din søgning'}
+                    </AppText>
+                    : filteredTransactions.map(t => (
                         <View key={t.id} style={styles.transactionRow}>
                             <View>
                                 <AppText variant="p">{t.description}</AppText>
@@ -365,14 +396,25 @@ const styles = StyleSheet.create({
     content: { flex: 1 },
     topHeader: {
         backgroundColor: theme.colors.background.card,
-        paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.xl,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        paddingBottom: theme.spacing.lg,
         borderBottomWidth: theme.borderWidth.thin,
         borderBottomColor: theme.colors.background.cardBorder,
     },
     tab: { flex: 1 },
     tabContent: { padding: theme.spacing.xl },
-    pageTitle: { marginBottom: theme.spacing.xl },
+    pageTitle: { marginBottom: theme.spacing.md },
+    searchInput: {
+        borderWidth: theme.borderWidth.thin,
+        borderColor: theme.input.border,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+        fontSize: theme.typography.input.fontSize,
+        backgroundColor: theme.input.background,
+        color: theme.input.text,
+    },
     pageHeader: {
         padding: theme.spacing.xl,
         paddingBottom: theme.spacing.md,
