@@ -9,6 +9,11 @@ import { useCategoryViewModel } from '../../viewmodels/useCategoryViewModel'
 import { useOrganisationViewModel } from '../../viewmodels/useOrganisationViewModel'
 import { useTransactionViewModel } from '../../viewmodels/useTransactionViewModel'
 
+const getSignedAmount = (amount: number, categoryType: CategoryType) => {
+    const absoluteAmount = Math.abs(amount)
+    return categoryType === 'income' ? absoluteAmount : -absoluteAmount
+}
+
 const TABS = [
     { key: 'overblik', label: 'Overblik', icon: 'grid-outline' as const },
     { key: 'afdelinger', label: 'Afdelinger', icon: 'business-outline' as const },
@@ -184,10 +189,20 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
 
     const handleAddTx = async () => {
         if (!txAmount.trim() || !txDescription.trim() || !txCategoryId) return
-        await addTransaction(parseFloat(txAmount), txDate, txDescription)
-        setTxAmount('')
-        setTxDescription('')
-        setShowTxModal(false)
+        const parsedAmount = parseFloat(txAmount)
+        if (Number.isNaN(parsedAmount)) return
+
+        const selectedCategory = categories.find(category => category.id === txCategoryId)
+        if (!selectedCategory) return
+
+        try {
+            await addTransaction(getSignedAmount(parsedAmount, selectedCategory.type), txDate, txDescription)
+            setTxAmount('')
+            setTxDescription('')
+            setShowTxModal(false)
+        } catch {
+            // Error state håndteres i viewmodel via `error`
+        }
     }
 
     return (
@@ -220,7 +235,7 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
                                 </AppText>
                             </TouchableOpacity>
                             {selectedCatId === cat.id && (
-                                <TransactionSection token={token} categoryId={cat.id} />
+                                <TransactionSection token={token} categoryId={cat.id} categoryType={cat.type} />
                             )}
                         </View>
                     ))
@@ -248,7 +263,7 @@ function CategorySection({ token, departmentId }: { token: string; departmentId:
 }
 
 // ── TRANSACTION SECTION ───────────────────────────────────────────────────────
-function TransactionSection({ token, categoryId }: { token: string; categoryId: string }) {
+function TransactionSection({ token, categoryId, categoryType }: { token: string; categoryId: string; categoryType: CategoryType }) {
     const { transactions, isLoading, addTransaction } = useTransactionViewModel(token, categoryId)
     const [showModal, setShowModal] = useState(false)
     const [amount, setAmount] = useState('')
@@ -257,10 +272,17 @@ function TransactionSection({ token, categoryId }: { token: string; categoryId: 
 
     const handleAdd = async () => {
         if (!amount.trim() || !description.trim()) return
-        await addTransaction(parseFloat(amount), date, description)
-        setAmount('')
-        setDescription('')
-        setShowModal(false)
+        const parsedAmount = parseFloat(amount)
+        if (Number.isNaN(parsedAmount)) return
+
+        try {
+            await addTransaction(getSignedAmount(parsedAmount, categoryType), date, description)
+            setAmount('')
+            setDescription('')
+            setShowModal(false)
+        } catch {
+            // Error state håndteres i viewmodel via `error`
+        }
     }
 
     return (
@@ -316,6 +338,7 @@ function TransaktionerTab({ token }: { token: string }) {
                             <View>
                                 <AppText variant="p">{t.description}</AppText>
                                 <AppText variant="p" color={theme.colors.text.light}>{t.date}</AppText>
+                                <AppText variant="p" color={theme.colors.text.light}>{t.categories?.departments?.name} • {t.categories?.name} </AppText>
                             </View>
                             <AppText variant="p" color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}>
                                 {t.amount > 0 ? '+' : ''}{t.amount.toLocaleString()} kr
@@ -343,7 +366,7 @@ const styles = StyleSheet.create({
     topHeader: {
         backgroundColor: theme.colors.background.card,
         paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.md,
+        paddingVertical: theme.spacing.xl,
         borderBottomWidth: theme.borderWidth.thin,
         borderBottomColor: theme.colors.background.cardBorder,
     },

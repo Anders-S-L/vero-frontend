@@ -7,6 +7,15 @@ export type Transaction = {
     date: string
     description: string | null
     created_at: string
+    categories?: {
+        id: string
+        name: string
+        type: string
+        departments?: {
+            id: string
+            name: string
+        }
+    }
 }
 
 export const transactionModel = {

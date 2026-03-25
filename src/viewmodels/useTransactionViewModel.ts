@@ -10,7 +10,7 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         try {
             setIsLoading(true)
             const data = await transactionModel.getTransactions(token)
-            setTransactions(data.filter(t => t.category_id === categoryId))
+            setTransactions(categoryId ? data.filter(t => t.category_id === categoryId) : data)
         } catch (e) {
             setError((e as Error).message)
         } finally {
@@ -18,12 +18,14 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         }
     }, [token, categoryId])
 
-    const addTransaction = async (amount: number, date: string, description: string | null) => {
+    const addTransaction = async (amount: number, date: string, description: string | null): Promise<Transaction> => {
         try {
             const data = await transactionModel.createTransaction(token, amount, date, categoryId, description)
             setTransactions(prev => [...prev, data])
+            return data
         } catch (e) {
             setError((e as Error).message)
+            throw e
         }
     }
 
