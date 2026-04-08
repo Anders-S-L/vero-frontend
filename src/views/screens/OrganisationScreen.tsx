@@ -18,6 +18,7 @@ const TABS = [
     { key: 'overblik', label: 'Overblik', icon: 'grid-outline' as const },
     { key: 'afdelinger', label: 'Afdelinger', icon: 'business-outline' as const },
     { key: 'transaktioner', label: 'Transaktioner', icon: 'card-outline' as const },
+    { key: 'dashboards', label: 'Dashboards', icon: 'stats-chart-outline' as const },
     { key: 'team', label: 'Team', icon: 'people-outline' as const },
 ]
 
@@ -35,6 +36,7 @@ export default function OrganisationScreen({ token, organisationName }: { token:
                 {activeTab === 'overblik' && <OverblikTab token={token} organisationName={organisationName} />}
                 {activeTab === 'afdelinger' && <AfdelingerTab token={token} />}
                 {activeTab === 'transaktioner' && <TransaktionerTab token={token} />}
+                {activeTab === 'dashboards' && <DashboardsTab />}
                 {activeTab === 'team' && <TeamTab />}
             </View>
             <BottomTabBar tabs={TABS} activeTab={activeTab} onTabPress={setActiveTab} />
@@ -381,6 +383,45 @@ function TransaktionerTab({ token }: { token: string }) {
     )
 }
 
+// ── DASHBOARDS TAB ─────────────────────────────────────────────────────────
+function DashboardsTab() {
+    return (
+        <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+            <AppText variant="h3" style={styles.pageTitle}>Dashboards</AppText>
+
+            <View style={styles.dashboardSection}>
+                <AppText variant="h4">Income This Month</AppText>
+                <AppText variant="p" color={theme.colors.text.secondary}>
+                    Placeholder til graf eller KPI-komponent
+                </AppText>
+                <View style={styles.dashboardPlaceholder}>
+                    <AppText variant="p" color={theme.colors.text.light}>Graph placeholder</AppText>
+                </View>
+            </View>
+
+            <View style={styles.dashboardSection}>
+                <AppText variant="h4">Expenses This Month</AppText>
+                <AppText variant="p" color={theme.colors.text.secondary}>
+                    Placeholder til udgiftsgraf eller oversigt
+                </AppText>
+                <View style={styles.dashboardPlaceholder}>
+                    <AppText variant="p" color={theme.colors.text.light}>Chart placeholder</AppText>
+                </View>
+            </View>
+
+            <View style={styles.dashboardSection}>
+                <AppText variant="h4">Net Result</AppText>
+                <AppText variant="p" color={theme.colors.text.secondary}>
+                    Placeholder til samlet KPI, trend eller forecast
+                </AppText>
+                <View style={styles.dashboardPlaceholder}>
+                    <AppText variant="p" color={theme.colors.text.light}>KPI placeholder</AppText>
+                </View>
+            </View>
+        </ScrollView>
+    )
+}
+
 // ── TEAM TAB ──────────────────────────────────────────────────────────────────
 function TeamTab() {
     return (
@@ -414,6 +455,26 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.input.fontSize,
         backgroundColor: theme.input.background,
         color: theme.input.text,
+    },
+    dashboardSection: {
+        backgroundColor: theme.colors.background.card,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        borderWidth: theme.borderWidth.thin,
+        borderColor: theme.colors.background.cardBorder,
+        gap: theme.spacing.sm,
+    },
+    dashboardPlaceholder: {
+        height: 180,
+        borderRadius: theme.radius.sm,
+        borderWidth: theme.borderWidth.thin,
+        borderColor: theme.colors.background.cardBorder,
+        borderStyle: 'dashed',
+        backgroundColor: theme.colors.background.app,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: theme.spacing.sm,
     },
     pageHeader: {
         padding: theme.spacing.xl,
