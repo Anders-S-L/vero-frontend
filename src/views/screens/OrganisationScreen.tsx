@@ -1,552 +1,1011 @@
-import { Ionicons } from '@expo/vector-icons'
-import React, { useState } from 'react'
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AlertMessage, AppText, BaseModal, BottomTabBar, DropdownField, InputField, PrimaryButton } from '../../components'
-import { theme } from '../../constants/theme'
-import { CategoryType } from '../../models/categoryModel'
-import { useCategoryViewModel } from '../../viewmodels/useCategoryViewModel'
-import { useOrganisationViewModel } from '../../viewmodels/useOrganisationViewModel'
-import { useTransactionViewModel } from '../../viewmodels/useTransactionViewModel'
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  AlertMessage,
+  AppText,
+  BaseModal,
+  BottomTabBar,
+  DropdownField,
+  InputField,
+  PrimaryButton,
+} from "../../components";
+import { theme } from "../../constants/theme";
+import { CategoryType } from "../../models/categoryModel";
+import { useCategoryViewModel } from "../../viewmodels/useCategoryViewModel";
+import { useKpiViewModel } from "../../viewmodels/useKpiViewModel";
+import { useOrganisationViewModel } from "../../viewmodels/useOrganisationViewModel";
+import { useTransactionViewModel } from "../../viewmodels/useTransactionViewModel";
 
 const getSignedAmount = (amount: number, categoryType: CategoryType) => {
-    const absoluteAmount = Math.abs(amount)
-    return categoryType === 'income' ? absoluteAmount : -absoluteAmount
-}
+  const absoluteAmount = Math.abs(amount);
+  return categoryType === "income" ? absoluteAmount : -absoluteAmount;
+};
 
 const TABS = [
-    { key: 'overblik', label: 'Overblik', icon: 'grid-outline' as const },
-    { key: 'afdelinger', label: 'Afdelinger', icon: 'business-outline' as const },
-    { key: 'transaktioner', label: 'Transaktioner', icon: 'card-outline' as const },
-    { key: 'dashboards', label: 'Dashboards', icon: 'stats-chart-outline' as const },
-    { key: 'team', label: 'Team', icon: 'people-outline' as const },
-]
+  { key: "overblik", label: "Overblik", icon: "grid-outline" as const },
+  { key: "afdelinger", label: "Afdelinger", icon: "business-outline" as const },
+  {
+    key: "transaktioner",
+    label: "Transaktioner",
+    icon: "card-outline" as const,
+  },
+  {
+    key: "dashboards",
+    label: "Dashboards",
+    icon: "stats-chart-outline" as const,
+  },
+  { key: "team", label: "Team", icon: "people-outline" as const },
+];
 
-export default function OrganisationScreen({ token, organisationName }: { token: string; organisationName: string }) {
-    const [activeTab, setActiveTab] = useState('overblik')
-    const insets = useSafeAreaInsets()
+export default function OrganisationScreen({
+  token,
+  organisationName,
+}: {
+  token: string;
+  organisationName: string;
+}) {
+  const [activeTab, setActiveTab] = useState("overblik");
+  const insets = useSafeAreaInsets();
 
-    return (
-        <View style={styles.container}>
-            <View style={[styles.topHeader, { paddingTop: insets.top + theme.spacing.md }]}>
-                <AppText variant="h4">{organisationName}</AppText>
-                <AppText variant="p" color={theme.colors.text.secondary}>Admin Panel</AppText>
-            </View>
-            <View style={styles.content}>
-                {activeTab === 'overblik' && <OverblikTab token={token} organisationName={organisationName} />}
-                {activeTab === 'afdelinger' && <AfdelingerTab token={token} />}
-                {activeTab === 'transaktioner' && <TransaktionerTab token={token} />}
-                {activeTab === 'dashboards' && <DashboardsTab />}
-                {activeTab === 'team' && <TeamTab />}
-            </View>
-            <BottomTabBar tabs={TABS} activeTab={activeTab} onTabPress={setActiveTab} />
-        </View>
-    )
+  return (
+    <View style={styles.container}>
+      <View
+        style={[
+          styles.topHeader,
+          { paddingTop: insets.top + theme.spacing.md },
+        ]}
+      >
+        <AppText variant="h4">{organisationName}</AppText>
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          Admin Panel
+        </AppText>
+      </View>
+      <View style={styles.content}>
+        {activeTab === "overblik" && (
+          <OverblikTab token={token} organisationName={organisationName} />
+        )}
+        {activeTab === "afdelinger" && <AfdelingerTab token={token} />}
+        {activeTab === "transaktioner" && <TransaktionerTab token={token} />}
+        {activeTab === "dashboards" && <DashboardsTab token={token} />}
+        {activeTab === "team" && <TeamTab />}
+      </View>
+      <BottomTabBar
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabPress={setActiveTab}
+      />
+    </View>
+  );
 }
 
 // ── OVERBLIK ──────────────────────────────────────────────────────────────────
-function OverblikTab({ token, organisationName }: { token: string; organisationName: string }) {
-    const { transactions, isLoading } = useTransactionViewModel(token, '')
+function OverblikTab({
+  token,
+  organisationName,
+}: {
+  token: string;
+  organisationName: string;
+}) {
+  const { transactions, isLoading } = useTransactionViewModel(token, "");
 
-    const totalIncome = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
-    const totalExpense = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)
-    const recent = transactions.slice(0, 5)
+  const totalIncome = transactions
+    .filter((t) => t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = transactions
+    .filter((t) => t.amount < 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const recent = transactions.slice(0, 5);
 
-    return (
-        <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-            <AppText variant="h3" style={styles.pageTitle}>{organisationName}</AppText>
+  return (
+    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+      <AppText variant="h3" style={styles.pageTitle}>
+        {organisationName}
+      </AppText>
 
-            <View style={styles.metricsRow}>
-                <View style={[styles.metricCard, styles.flex]}>
-                    <AppText variant="p" color={theme.colors.text.secondary}>Indtægter</AppText>
-                    <AppText variant="h4" color={theme.colors.status.success}>{totalIncome.toLocaleString()} kr</AppText>
-                </View>
-                <View style={styles.metricSpacer} />
-                <View style={[styles.metricCard, styles.flex]}>
-                    <AppText variant="p" color={theme.colors.text.secondary}>Udgifter</AppText>
-                    <AppText variant="h4" color={theme.colors.status.error}>{Math.abs(totalExpense).toLocaleString()} kr</AppText>
-                </View>
+      <View style={styles.metricsRow}>
+        <View style={[styles.metricCard, styles.flex]}>
+          <AppText variant="p" color={theme.colors.text.secondary}>
+            Indtægter
+          </AppText>
+          <AppText variant="h4" color={theme.colors.status.success}>
+            {totalIncome.toLocaleString()} kr
+          </AppText>
+        </View>
+        <View style={styles.metricSpacer} />
+        <View style={[styles.metricCard, styles.flex]}>
+          <AppText variant="p" color={theme.colors.text.secondary}>
+            Udgifter
+          </AppText>
+          <AppText variant="h4" color={theme.colors.status.error}>
+            {Math.abs(totalExpense).toLocaleString()} kr
+          </AppText>
+        </View>
+      </View>
+
+      <AppText variant="h4" style={styles.sectionTitle}>
+        Seneste transaktioner
+      </AppText>
+
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : recent.length === 0 ? (
+        <AppText
+          variant="p"
+          color={theme.colors.text.light}
+          style={styles.center}
+        >
+          Ingen transaktioner endnu
+        </AppText>
+      ) : (
+        recent.map((t) => (
+          <View key={t.id} style={styles.transactionRow}>
+            <View>
+              <AppText variant="p">{t.description}</AppText>
+              <AppText variant="p" color={theme.colors.text.light}>
+                {t.date}
+              </AppText>
             </View>
-
-            <AppText variant="h4" style={styles.sectionTitle}>Seneste transaktioner</AppText>
-
-            {isLoading
-                ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : recent.length === 0
-                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>Ingen transaktioner endnu</AppText>
-                    : recent.map(t => (
-                        <View key={t.id} style={styles.transactionRow}>
-                            <View>
-                                <AppText variant="p">{t.description}</AppText>
-                                <AppText variant="p" color={theme.colors.text.light}>{t.date}</AppText>
-                            </View>
-                            <AppText variant="p" color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}>
-                                {t.amount > 0 ? '+' : ''}{t.amount.toLocaleString()} kr
-                            </AppText>
-                        </View>
-                    ))
-            }
-        </ScrollView>
-    )
+            <AppText
+              variant="p"
+              color={
+                t.amount > 0
+                  ? theme.colors.status.success
+                  : theme.colors.status.error
+              }
+            >
+              {t.amount > 0 ? "+" : ""}
+              {t.amount.toLocaleString()} kr
+            </AppText>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
 }
 
 // ── AFDELINGER ────────────────────────────────────────────────────────────────
 function AfdelingerTab({ token }: { token: string }) {
-    const { departments, isLoading, error, addDepartment } = useOrganisationViewModel(token)
-    const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null)
-    const [showModal, setShowModal] = useState(false)
-    const [deptName, setDeptName] = useState('')
+  const { departments, isLoading, error, addDepartment } =
+    useOrganisationViewModel(token);
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [deptName, setDeptName] = useState("");
 
-    const handleAdd = async () => {
-        if (!deptName.trim()) return
-        await addDepartment(deptName.trim())
-        setDeptName('')
-        setShowModal(false)
-    }
+  const handleAdd = async () => {
+    if (!deptName.trim()) return;
+    await addDepartment(deptName.trim());
+    setDeptName("");
+    setShowModal(false);
+  };
 
-    return (
-        <View style={styles.tab}>
-            {error && <AlertMessage type="error" message={error} />}
+  return (
+    <View style={styles.tab}>
+      {error && <AlertMessage type="error" message={error} />}
 
-            {isLoading
-                ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : <FlatList
-                    data={departments}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.listContent}
-                    ListHeaderComponent={
-                        <View style={styles.pageHeader}>
-                            <AppText variant="h3">Afdelinger</AppText>
-                            <AppText variant="p" color={theme.colors.text.secondary}>
-                                Administrer afdelinger og kategorier
-                            </AppText>
-                            <PrimaryButton label="+ Tilføj Afdeling" onPress={() => setShowModal(true)} />
-                        </View>
-                    }
-                    renderItem={({ item }) => (
-                        <View style={styles.deptCard}>
-                            <TouchableOpacity
-                                style={styles.deptCardHeader}
-                                onPress={() => setSelectedDeptId(selectedDeptId === item.id ? null : item.id)}
-                            >
-                                <AppText variant="h4" style={styles.flex}>{item.name}</AppText>
-                                <Ionicons
-                                    name={selectedDeptId === item.id ? 'chevron-up' : 'chevron-down'}
-                                    size={20}
-                                    color={theme.colors.text.secondary}
-                                />
-                            </TouchableOpacity>
-                            {selectedDeptId === item.id && (
-                                <CategorySection token={token} departmentId={item.id} />
-                            )}
-                        </View>
-                    )}
-                    ListEmptyComponent={
-                        <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
-                            Ingen afdelinger endnu
-                        </AppText>
-                    }
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : (
+        <FlatList
+          data={departments}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            <View style={styles.pageHeader}>
+              <AppText variant="h3">Afdelinger</AppText>
+              <AppText variant="p" color={theme.colors.text.secondary}>
+                Administrer afdelinger og kategorier
+              </AppText>
+              <PrimaryButton
+                label="+ Tilføj Afdeling"
+                onPress={() => setShowModal(true)}
+              />
+            </View>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.deptCard}>
+              <TouchableOpacity
+                style={styles.deptCardHeader}
+                onPress={() =>
+                  setSelectedDeptId(selectedDeptId === item.id ? null : item.id)
+                }
+              >
+                <AppText variant="h4" style={styles.flex}>
+                  {item.name}
+                </AppText>
+                <Ionicons
+                  name={
+                    selectedDeptId === item.id ? "chevron-up" : "chevron-down"
+                  }
+                  size={20}
+                  color={theme.colors.text.secondary}
                 />
-            }
+              </TouchableOpacity>
+              {selectedDeptId === item.id && (
+                <CategorySection token={token} departmentId={item.id} />
+              )}
+            </View>
+          )}
+          ListEmptyComponent={
+            <AppText
+              variant="p"
+              color={theme.colors.text.light}
+              style={styles.center}
+            >
+              Ingen afdelinger endnu
+            </AppText>
+          }
+        />
+      )}
 
-            <BaseModal visible={showModal} title="Tilføj afdeling" onClose={() => setShowModal(false)}>
-                <InputField label="Navn" placeholder="fx Marketing" value={deptName} onChangeText={setDeptName} />
-                <PrimaryButton label="Tilføj" onPress={handleAdd} />
-            </BaseModal>
-        </View>
-    )
+      <BaseModal
+        visible={showModal}
+        title="Tilføj afdeling"
+        onClose={() => setShowModal(false)}
+      >
+        <InputField
+          label="Navn"
+          placeholder="fx Marketing"
+          value={deptName}
+          onChangeText={setDeptName}
+        />
+        <PrimaryButton label="Tilføj" onPress={handleAdd} />
+      </BaseModal>
+    </View>
+  );
 }
 
 // ── CATEGORY SECTION ──────────────────────────────────────────────────────────
-function CategorySection({ token, departmentId }: { token: string; departmentId: string }) {
-    const { categories, isLoading, addCategory } = useCategoryViewModel(token, departmentId)
-    const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
-    const [showCatModal, setShowCatModal] = useState(false)
-    const [showTxModal, setShowTxModal] = useState(false)
-    const [catName, setCatName] = useState('')
-    const [catType, setCatType] = useState<CategoryType>('expense')
+function CategorySection({
+  token,
+  departmentId,
+}: {
+  token: string;
+  departmentId: string;
+}) {
+  const { categories, isLoading, addCategory } = useCategoryViewModel(
+    token,
+    departmentId,
+  );
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
+  const [catName, setCatName] = useState("");
+  const [catType, setCatType] = useState<CategoryType>("expense");
 
-    // Transaktion state
-    const [txCategoryId, setTxCategoryId] = useState('')
-    const [txAmount, setTxAmount] = useState('')
-    const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0])
-    const [txDescription, setTxDescription] = useState('')
-    const { addTransaction } = useTransactionViewModel(token, txCategoryId)
+  // Transaktion state
+  const [txCategoryId, setTxCategoryId] = useState("");
+  const [txAmount, setTxAmount] = useState("");
+  const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
+  const [txDescription, setTxDescription] = useState("");
+  const { addTransaction } = useTransactionViewModel(token, txCategoryId);
 
-    const categoryOptions = categories.map(c => ({ label: c.name, value: c.id }))
+  const categoryOptions = categories.map((c) => ({
+    label: c.name,
+    value: c.id,
+  }));
 
-    const typeOptions = [
-        { label: 'Indtægt', value: 'income' },
-        { label: 'Udgift', value: 'expense' },
-        { label: 'Skat', value: 'tax' },
-        { label: 'Afskrivning', value: 'depreciation' },
-    ]
+  const typeOptions = [
+    { label: "Indtægt", value: "income" },
+    { label: "Udgift", value: "expense" },
+    { label: "Skat", value: "tax" },
+    { label: "Afskrivning", value: "depreciation" },
+  ];
 
-    const handleAddCat = async () => {
-        if (!catName.trim()) return
-        await addCategory(catName.trim(), catType)
-        setCatName('')
-        setShowCatModal(false)
+  const handleAddCat = async () => {
+    if (!catName.trim()) return;
+    await addCategory(catName.trim(), catType);
+    setCatName("");
+    setShowCatModal(false);
+  };
+
+  const handleAddTx = async () => {
+    if (!txAmount.trim() || !txDescription.trim() || !txCategoryId) return;
+    const parsedAmount = parseFloat(txAmount);
+    if (Number.isNaN(parsedAmount)) return;
+
+    const selectedCategory = categories.find(
+      (category) => category.id === txCategoryId,
+    );
+    if (!selectedCategory) return;
+
+    try {
+      await addTransaction(
+        getSignedAmount(parsedAmount, selectedCategory.type),
+        txDate,
+        txDescription,
+      );
+      setTxAmount("");
+      setTxDescription("");
+      setShowTxModal(false);
+    } catch {
+      // Error state håndteres i viewmodel via `error`
     }
+  };
 
-    const handleAddTx = async () => {
-        if (!txAmount.trim() || !txDescription.trim() || !txCategoryId) return
-        const parsedAmount = parseFloat(txAmount)
-        if (Number.isNaN(parsedAmount)) return
+  return (
+    <View style={styles.categorySection}>
+      <View style={styles.sectionHeader}>
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          Kategorier
+        </AppText>
+        <TouchableOpacity
+          style={styles.smallBtn}
+          onPress={() => setShowCatModal(true)}
+        >
+          <AppText variant="p" color={theme.colors.white}>
+            + Kategori
+          </AppText>
+        </TouchableOpacity>
+      </View>
 
-        const selectedCategory = categories.find(category => category.id === txCategoryId)
-        if (!selectedCategory) return
-
-        try {
-            await addTransaction(getSignedAmount(parsedAmount, selectedCategory.type), txDate, txDescription)
-            setTxAmount('')
-            setTxDescription('')
-            setShowTxModal(false)
-        } catch {
-            // Error state håndteres i viewmodel via `error`
-        }
-    }
-
-    return (
-        <View style={styles.categorySection}>
-            <View style={styles.sectionHeader}>
-                <AppText variant="p" color={theme.colors.text.secondary}>Kategorier</AppText>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setShowCatModal(true)}>
-                    <AppText variant="p" color={theme.colors.white}>+ Kategori</AppText>
-                </TouchableOpacity>
-            </View>
-
-            {isLoading
-                ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : categories.length === 0
-                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>Ingen kategorier endnu</AppText>
-                    : categories.map(cat => (
-                        <View key={cat.id}>
-                            <TouchableOpacity
-                                style={[styles.catRow, selectedCatId === cat.id && styles.catRowActive]}
-                                onPress={() => setSelectedCatId(selectedCatId === cat.id ? null : cat.id)}
-                            >
-                                <View style={[styles.catIndicator, {
-                                    backgroundColor: cat.type === 'income'
-                                        ? theme.colors.status.success
-                                        : theme.colors.status.error
-                                }]} />
-                                <AppText variant="p" style={styles.flex}>{cat.name}</AppText>
-                                <AppText variant="p" color={theme.colors.text.light}>
-                                    {cat.type === 'income' ? 'Indtægt' : cat.type === 'expense' ? 'Udgift' : cat.type === 'tax' ? 'Skat' : 'Afskrivning'}
-                                </AppText>
-                            </TouchableOpacity>
-                            {selectedCatId === cat.id && (
-                                <TransactionSection token={token} categoryId={cat.id} categoryType={cat.type} />
-                            )}
-                        </View>
-                    ))
-            }
-
-            <TouchableOpacity style={styles.addTransactionBtn} onPress={() => setShowTxModal(true)}>
-                <AppText variant="p" color={theme.colors.text.secondary}>+ Tilføj Transaktion</AppText>
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : categories.length === 0 ? (
+        <AppText
+          variant="p"
+          color={theme.colors.text.light}
+          style={styles.center}
+        >
+          Ingen kategorier endnu
+        </AppText>
+      ) : (
+        categories.map((cat) => (
+          <View key={cat.id}>
+            <TouchableOpacity
+              style={[
+                styles.catRow,
+                selectedCatId === cat.id && styles.catRowActive,
+              ]}
+              onPress={() =>
+                setSelectedCatId(selectedCatId === cat.id ? null : cat.id)
+              }
+            >
+              <View
+                style={[
+                  styles.catIndicator,
+                  {
+                    backgroundColor:
+                      cat.type === "income"
+                        ? theme.colors.status.success
+                        : theme.colors.status.error,
+                  },
+                ]}
+              />
+              <AppText variant="p" style={styles.flex}>
+                {cat.name}
+              </AppText>
+              <AppText variant="p" color={theme.colors.text.light}>
+                {cat.type === "income"
+                  ? "Indtægt"
+                  : cat.type === "expense"
+                    ? "Udgift"
+                    : cat.type === "tax"
+                      ? "Skat"
+                      : "Afskrivning"}
+              </AppText>
             </TouchableOpacity>
+            {selectedCatId === cat.id && (
+              <TransactionSection
+                token={token}
+                categoryId={cat.id}
+                categoryType={cat.type}
+              />
+            )}
+          </View>
+        ))
+      )}
 
-            <BaseModal visible={showCatModal} title="Tilføj kategori" onClose={() => setShowCatModal(false)}>
-                <InputField label="Navn" placeholder="fx Løn" value={catName} onChangeText={setCatName} />
-                <DropdownField label="Type" options={typeOptions} value={catType} onChange={v => setCatType(v as CategoryType)} />
-                <PrimaryButton label="Tilføj" onPress={handleAddCat} />
-            </BaseModal>
+      <TouchableOpacity
+        style={styles.addTransactionBtn}
+        onPress={() => setShowTxModal(true)}
+      >
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          + Tilføj Transaktion
+        </AppText>
+      </TouchableOpacity>
 
-            <BaseModal visible={showTxModal} title="Tilføj transaktion" onClose={() => setShowTxModal(false)}>
-                <DropdownField label="Kategori" options={categoryOptions} value={txCategoryId} onChange={setTxCategoryId} />
-                <InputField label="Beløb" placeholder="fx 5000" value={txAmount} onChangeText={setTxAmount} keyboardType="numeric" />
-                <InputField label="Dato" placeholder="YYYY-MM-DD" value={txDate} onChangeText={setTxDate} />
-                <InputField label="Beskrivelse" placeholder="fx Løn marts" value={txDescription} onChangeText={setTxDescription} />
-                <PrimaryButton label="Tilføj transaktion" onPress={handleAddTx} />
-            </BaseModal>
-        </View>
-    )
+      <BaseModal
+        visible={showCatModal}
+        title="Tilføj kategori"
+        onClose={() => setShowCatModal(false)}
+      >
+        <InputField
+          label="Navn"
+          placeholder="fx Løn"
+          value={catName}
+          onChangeText={setCatName}
+        />
+        <DropdownField
+          label="Type"
+          options={typeOptions}
+          value={catType}
+          onChange={(v) => setCatType(v as CategoryType)}
+        />
+        <PrimaryButton label="Tilføj" onPress={handleAddCat} />
+      </BaseModal>
+
+      <BaseModal
+        visible={showTxModal}
+        title="Tilføj transaktion"
+        onClose={() => setShowTxModal(false)}
+      >
+        <DropdownField
+          label="Kategori"
+          options={categoryOptions}
+          value={txCategoryId}
+          onChange={setTxCategoryId}
+        />
+        <InputField
+          label="Beløb"
+          placeholder="fx 5000"
+          value={txAmount}
+          onChangeText={setTxAmount}
+          keyboardType="numeric"
+        />
+        <InputField
+          label="Dato"
+          placeholder="YYYY-MM-DD"
+          value={txDate}
+          onChangeText={setTxDate}
+        />
+        <InputField
+          label="Beskrivelse"
+          placeholder="fx Løn marts"
+          value={txDescription}
+          onChangeText={setTxDescription}
+        />
+        <PrimaryButton label="Tilføj transaktion" onPress={handleAddTx} />
+      </BaseModal>
+    </View>
+  );
 }
 
 // ── TRANSACTION SECTION ───────────────────────────────────────────────────────
-function TransactionSection({ token, categoryId, categoryType }: { token: string; categoryId: string; categoryType: CategoryType }) {
-    const { transactions, isLoading, addTransaction } = useTransactionViewModel(token, categoryId)
-    const [showModal, setShowModal] = useState(false)
-    const [amount, setAmount] = useState('')
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-    const [description, setDescription] = useState('')
+function TransactionSection({
+  token,
+  categoryId,
+  categoryType,
+}: {
+  token: string;
+  categoryId: string;
+  categoryType: CategoryType;
+}) {
+  const { transactions, isLoading, addTransaction } = useTransactionViewModel(
+    token,
+    categoryId,
+  );
+  const [showModal, setShowModal] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [description, setDescription] = useState("");
 
-    const handleAdd = async () => {
-        if (!amount.trim() || !description.trim()) return
-        const parsedAmount = parseFloat(amount)
-        if (Number.isNaN(parsedAmount)) return
+  const handleAdd = async () => {
+    if (!amount.trim() || !description.trim()) return;
+    const parsedAmount = parseFloat(amount);
+    if (Number.isNaN(parsedAmount)) return;
 
-        try {
-            await addTransaction(getSignedAmount(parsedAmount, categoryType), date, description)
-            setAmount('')
-            setDescription('')
-            setShowModal(false)
-        } catch {
-            // Error state håndteres i viewmodel via `error`
-        }
+    try {
+      await addTransaction(
+        getSignedAmount(parsedAmount, categoryType),
+        date,
+        description,
+      );
+      setAmount("");
+      setDescription("");
+      setShowModal(false);
+    } catch {
+      // Error state håndteres i viewmodel via `error`
     }
+  };
 
-    return (
-        <View style={styles.transactionSection}>
-            <View style={styles.sectionHeader}>
-                <AppText variant="p" color={theme.colors.text.secondary}>Transaktioner</AppText>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setShowModal(true)}>
-                    <AppText variant="p" color={theme.colors.white}>+ Tilføj</AppText>
-                </TouchableOpacity>
+  return (
+    <View style={styles.transactionSection}>
+      <View style={styles.sectionHeader}>
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          Transaktioner
+        </AppText>
+        <TouchableOpacity
+          style={styles.smallBtn}
+          onPress={() => setShowModal(true)}
+        >
+          <AppText variant="p" color={theme.colors.white}>
+            + Tilføj
+          </AppText>
+        </TouchableOpacity>
+      </View>
+
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : transactions.length === 0 ? (
+        <AppText
+          variant="p"
+          color={theme.colors.text.light}
+          style={styles.center}
+        >
+          Ingen transaktioner endnu
+        </AppText>
+      ) : (
+        transactions.map((t) => (
+          <View key={t.id} style={styles.transactionRow}>
+            <View>
+              <AppText variant="p">{t.description}</AppText>
+              <AppText variant="p" color={theme.colors.text.light}>
+                {t.date}
+              </AppText>
             </View>
+            <AppText
+              variant="p"
+              color={
+                t.amount > 0
+                  ? theme.colors.status.success
+                  : theme.colors.status.error
+              }
+            >
+              {t.amount > 0 ? "+" : ""}
+              {t.amount.toLocaleString()} kr
+            </AppText>
+          </View>
+        ))
+      )}
 
-            {isLoading
-                ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : transactions.length === 0
-                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>Ingen transaktioner endnu</AppText>
-                    : transactions.map(t => (
-                        <View key={t.id} style={styles.transactionRow}>
-                            <View>
-                                <AppText variant="p">{t.description}</AppText>
-                                <AppText variant="p" color={theme.colors.text.light}>{t.date}</AppText>
-                            </View>
-                            <AppText variant="p" color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}>
-                                {t.amount > 0 ? '+' : ''}{t.amount.toLocaleString()} kr
-                            </AppText>
-                        </View>
-                    ))
-            }
-
-            <BaseModal visible={showModal} title="Tilføj transaktion" onClose={() => setShowModal(false)}>
-                <InputField label="Beløb" placeholder="fx 5000" value={amount} onChangeText={setAmount} keyboardType="numeric" />
-                <InputField label="Dato" placeholder="YYYY-MM-DD" value={date} onChangeText={setDate} />
-                <InputField label="Beskrivelse" placeholder="fx Løn marts" value={description} onChangeText={setDescription} />
-                <PrimaryButton label="Tilføj transaktion" onPress={handleAdd} />
-            </BaseModal>
-        </View>
-    )
+      <BaseModal
+        visible={showModal}
+        title="Tilføj transaktion"
+        onClose={() => setShowModal(false)}
+      >
+        <InputField
+          label="Beløb"
+          placeholder="fx 5000"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+        <InputField
+          label="Dato"
+          placeholder="YYYY-MM-DD"
+          value={date}
+          onChangeText={setDate}
+        />
+        <InputField
+          label="Beskrivelse"
+          placeholder="fx Løn marts"
+          value={description}
+          onChangeText={setDescription}
+        />
+        <PrimaryButton label="Tilføj transaktion" onPress={handleAdd} />
+      </BaseModal>
+    </View>
+  );
 }
 
 // ── TRANSAKTIONER TAB ─────────────────────────────────────────────────────────
 function TransaktionerTab({ token }: { token: string }) {
-    const { transactions, isLoading } = useTransactionViewModel(token, '')
-    const [searchQuery, setSearchQuery] = useState('')
+  const { transactions, isLoading } = useTransactionViewModel(token, "");
+  const [searchQuery, setSearchQuery] = useState("");
 
-    const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-    const filteredTransactions = normalizedSearchQuery.length === 0
-        ? transactions
-        : transactions.filter(transaction => {
-            const searchableText = [
-                transaction.description,
-                transaction.date,
-                transaction.categories?.name,
-                transaction.categories?.departments?.name,
-                transaction.amount.toString(),
-            ]
-                .filter(Boolean)
-                .join(' ')
-                .toLowerCase()
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredTransactions =
+    normalizedSearchQuery.length === 0
+      ? transactions
+      : transactions.filter((transaction) => {
+          const searchableText = [
+            transaction.description,
+            transaction.date,
+            transaction.categories?.name,
+            transaction.categories?.departments?.name,
+            transaction.amount.toString(),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-            return searchableText.includes(normalizedSearchQuery)
-        })
+          return searchableText.includes(normalizedSearchQuery);
+        });
 
+  return (
+    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+      <AppText variant="h3" style={styles.pageTitle}>
+        Transaktioner
+      </AppText>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
+        placeholderTextColor={theme.input.placeholder}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
-    return (
-        <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-            <AppText variant="h3" style={styles.pageTitle}>Transaktioner</AppText>
-            <TextInput
-                style={styles.searchInput}
-                placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
-                placeholderTextColor={theme.input.placeholder}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-            />
-
-            {isLoading
-                ? <ActivityIndicator color={theme.colors.primary.blue} />
-                : filteredTransactions.length === 0
-                    ? <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
-                        {transactions.length === 0 ? 'Ingen transaktioner endnu' : 'Ingen transaktioner matcher din søgning'}
-                    </AppText>
-                    : filteredTransactions.map(t => (
-                        <View key={t.id} style={styles.transactionRow}>
-                            <View>
-                                <AppText variant="p">{t.description}</AppText>
-                                <AppText variant="p" color={theme.colors.text.light}>{t.date}</AppText>
-                                <AppText variant="p" color={theme.colors.text.light}>{t.categories?.departments?.name} • {t.categories?.name} </AppText>
-                            </View>
-                            <AppText variant="p" color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}>
-                                {t.amount > 0 ? '+' : ''}{t.amount.toLocaleString()} kr
-                            </AppText>
-                        </View>
-                    ))
-            }
-        </ScrollView>
-    )
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : filteredTransactions.length === 0 ? (
+        <AppText
+          variant="p"
+          color={theme.colors.text.light}
+          style={styles.center}
+        >
+          {transactions.length === 0
+            ? "Ingen transaktioner endnu"
+            : "Ingen transaktioner matcher din søgning"}
+        </AppText>
+      ) : (
+        filteredTransactions.map((t) => (
+          <View key={t.id} style={styles.transactionRow}>
+            <View>
+              <AppText variant="p">{t.description}</AppText>
+              <AppText variant="p" color={theme.colors.text.light}>
+                {t.date}
+              </AppText>
+              <AppText variant="p" color={theme.colors.text.light}>
+                {t.categories?.departments?.name} • {t.categories?.name}{" "}
+              </AppText>
+            </View>
+            <AppText
+              variant="p"
+              color={
+                t.amount > 0
+                  ? theme.colors.status.success
+                  : theme.colors.status.error
+              }
+            >
+              {t.amount > 0 ? "+" : ""}
+              {t.amount.toLocaleString()} kr
+            </AppText>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
 }
 
 // ── DASHBOARDS TAB ─────────────────────────────────────────────────────────
-function DashboardsTab() {
-    return (
-        <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-            <AppText variant="h3" style={styles.pageTitle}>Dashboards</AppText>
+function DashboardsTab({ token }: { token: string }) {
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const to = today.toISOString().slice(0, 10);
+  const { kpis, isLoading, error } = useKpiViewModel(token, from, to);
 
-            <View style={styles.dashboardSection}>
-                <AppText variant="h4">Income This Month</AppText>
-                <AppText variant="p" color={theme.colors.text.secondary}>
-                    Placeholder til graf eller KPI-komponent
-                </AppText>
-                <View style={styles.dashboardPlaceholder}>
-                    <AppText variant="p" color={theme.colors.text.light}>Graph placeholder</AppText>
-                </View>
-            </View>
+  const ALL_KPI_KEYS = [
+    "revenue",
+    "ebitda",
+    "netResult",
+    "cashFlow",
+    "burnRate",
+    "monthlyGrowthRate",
+    "grossProfit",
+    "grossMargin",
+    "variableCosts",
+    "contributionMargin",
+    "liquidityRatio",
+    "debtorDays",
+  ] as const;
 
-            <View style={styles.dashboardSection}>
-                <AppText variant="h4">Expenses This Month</AppText>
-                <AppText variant="p" color={theme.colors.text.secondary}>
-                    Placeholder til udgiftsgraf eller oversigt
-                </AppText>
-                <View style={styles.dashboardPlaceholder}>
-                    <AppText variant="p" color={theme.colors.text.light}>Chart placeholder</AppText>
-                </View>
-            </View>
+  type KpiKey = (typeof ALL_KPI_KEYS)[number];
 
-            <View style={styles.dashboardSection}>
-                <AppText variant="h4">Net Result</AppText>
+  const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([
+    "revenue",
+    "ebitda",
+    "cashFlow",
+    "burnRate",
+  ]);
+  const [showSelector, setShowSelector] = useState(false);
+
+  const toggleKpi = (key: KpiKey) => {
+    setSelectedKpis((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
+
+  const formatValue = (value: number | null, unit: string) => {
+    if (value === null) return "–";
+    if (unit === "currency")
+      return `${Math.round(value).toLocaleString("da-DK")} kr`;
+    if (unit === "percentage") return `${value.toFixed(1)}%`;
+    if (unit === "days") return `${value.toFixed(0)} dage`;
+    if (unit === "ratio") return value.toFixed(2);
+    return `${value}`;
+  };
+
+  return (
+    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+      <AppText variant="h3" style={styles.pageTitle}>
+        Dashboard
+      </AppText>
+      <AppText
+        variant="p"
+        color={theme.colors.text.secondary}
+        style={{ marginBottom: theme.spacing.lg }}
+      >
+        {from} – {to}
+      </AppText>
+
+      {error && <AlertMessage type="error" message={error} />}
+
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : (
+        <View style={styles.kpiGrid}>
+          {selectedKpis.map((key) => {
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            if (!metric) return null;
+            return (
+              <View key={key} style={styles.kpiCard}>
                 <AppText variant="p" color={theme.colors.text.secondary}>
-                    Placeholder til samlet KPI, trend eller forecast
+                  {metric.label}
                 </AppText>
-                <View style={styles.dashboardPlaceholder}>
-                    <AppText variant="p" color={theme.colors.text.light}>KPI placeholder</AppText>
-                </View>
-            </View>
-        </ScrollView>
-    )
+                <AppText
+                  variant="h4"
+                  color={
+                    metric.available
+                      ? theme.colors.text.primary
+                      : theme.colors.text.light
+                  }
+                >
+                  {metric.available
+                    ? formatValue(metric.value, metric.unit)
+                    : "–"}
+                </AppText>
+                {!metric.available && (
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.light}
+                    style={{ fontSize: 10 }}
+                  >
+                    {metric.reason}
+                  </AppText>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.addTransactionBtn}
+        onPress={() => setShowSelector(!showSelector)}
+      >
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          {showSelector ? "Luk" : "+ Vælg KPI'er"}
+        </AppText>
+      </TouchableOpacity>
+
+      {showSelector && (
+        <View style={styles.kpiSelector}>
+          {ALL_KPI_KEYS.map((key) => {
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            const isSelected = selectedKpis.includes(key);
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.chip,
+                  isSelected && styles.chipSelected,
+                  !metric?.available && styles.chipUnavailable,
+                ]}
+                onPress={() => toggleKpi(key)}
+              >
+                <AppText
+                  variant="p"
+                  color={
+                    isSelected ? theme.colors.white : theme.colors.text.primary
+                  }
+                >
+                  {metric?.label ?? key}
+                </AppText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
 }
 
 // ── TEAM TAB ──────────────────────────────────────────────────────────────────
 function TeamTab() {
-    return (
-        <View style={[styles.tab, styles.center]}>
-            <AppText variant="h4" color={theme.colors.text.secondary}>Team</AppText>
-            <AppText variant="p" color={theme.colors.text.light}>Invite-funktion kommer snart</AppText>
-        </View>
-    )
+  return (
+    <View style={[styles.tab, styles.center]}>
+      <AppText variant="h4" color={theme.colors.text.secondary}>
+        Team
+      </AppText>
+      <AppText variant="p" color={theme.colors.text.light}>
+        Invite-funktion kommer snart
+      </AppText>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background.app },
-    content: { flex: 1 },
-    topHeader: {
-        backgroundColor: theme.colors.background.card,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        paddingBottom: theme.spacing.lg,
-        borderBottomWidth: theme.borderWidth.thin,
-        borderBottomColor: theme.colors.background.cardBorder,
-    },
-    tab: { flex: 1 },
-    tabContent: { padding: theme.spacing.xl },
-    pageTitle: { marginBottom: theme.spacing.md },
-    searchInput: {
-        borderWidth: theme.borderWidth.thin,
-        borderColor: theme.input.border,
-        borderRadius: theme.radius.sm,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.input.fontSize,
-        backgroundColor: theme.input.background,
-        color: theme.input.text,
-    },
-    dashboardSection: {
-        backgroundColor: theme.colors.background.card,
-        borderRadius: theme.radius.md,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.lg,
-        borderWidth: theme.borderWidth.thin,
-        borderColor: theme.colors.background.cardBorder,
-        gap: theme.spacing.sm,
-    },
-    dashboardPlaceholder: {
-        height: 180,
-        borderRadius: theme.radius.sm,
-        borderWidth: theme.borderWidth.thin,
-        borderColor: theme.colors.background.cardBorder,
-        borderStyle: 'dashed',
-        backgroundColor: theme.colors.background.app,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: theme.spacing.sm,
-    },
-    pageHeader: {
-        padding: theme.spacing.xl,
-        paddingBottom: theme.spacing.md,
-        gap: theme.spacing.sm,
-    },
-    sectionTitle: { marginBottom: theme.spacing.md, marginTop: theme.spacing.xl },
-    sectionHeader: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: theme.spacing.md
-    },
-    metricsRow: { flexDirection: 'row', marginBottom: theme.spacing.xl },
-    metricCard: {
-        backgroundColor: theme.colors.background.card,
-        borderRadius: theme.radius.md, padding: theme.spacing.lg,
-        borderWidth: 1, borderColor: theme.colors.background.cardBorder
-    },
-    metricSpacer: { width: theme.spacing.md },
-    flex: { flex: 1 },
-    center: { textAlign: 'center', alignItems: 'center', justifyContent: 'center' },
-    listContent: { paddingHorizontal: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
-    deptCard: {
-        backgroundColor: theme.colors.background.card,
-        borderRadius: theme.radius.md, marginBottom: theme.spacing.md,
-        borderWidth: theme.borderWidth.thin, borderColor: theme.colors.background.cardBorder,
-        overflow: 'hidden'
-    },
-    deptCardHeader: {
-        flexDirection: 'row', alignItems: 'center',
-        padding: theme.spacing.lg,
-    },
-    categorySection: {
-        backgroundColor: theme.colors.background.app,
-        padding: theme.spacing.md,
-    },
-    sectionHeader2: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: theme.spacing.md
-    },
-    catRow: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: theme.colors.background.card,
-        padding: theme.spacing.md, borderRadius: theme.radius.sm,
-        marginBottom: theme.spacing.xs,
-        borderWidth: 1, borderColor: theme.colors.background.cardBorder
-    },
-    catRowActive: { borderColor: theme.colors.primary.blue },
-    catIndicator: {
-        width: 4, height: 36, borderRadius: 2, marginRight: theme.spacing.md
-    },
-    addTransactionBtn: {
-        borderWidth: theme.borderWidth.thin, borderColor: theme.colors.background.cardBorder,
-        borderRadius: theme.radius.sm, padding: theme.spacing.lg,
-        alignItems: 'center', marginTop: theme.spacing.sm,
-        backgroundColor: theme.colors.background.card
-    },
-    smallBtn: {
-        backgroundColor: theme.colors.primary.blue,
-        borderRadius: theme.radius.sm,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.xs,
-    },
-    transactionSection: {
-        backgroundColor: theme.colors.background.app,
-        padding: theme.spacing.md,
-        marginLeft: theme.spacing.md
-    },
-    transactionRow: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', backgroundColor: theme.colors.background.card,
-        padding: theme.spacing.md, borderRadius: theme.radius.sm,
-        marginBottom: theme.spacing.xs,
-        borderWidth: 1, borderColor: theme.colors.background.cardBorder
-    },
-})
+  container: { flex: 1, backgroundColor: theme.colors.background.app },
+  content: { flex: 1 },
+  topHeader: {
+    backgroundColor: theme.colors.background.card,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+    borderBottomWidth: theme.borderWidth.thin,
+    borderBottomColor: theme.colors.background.cardBorder,
+  },
+  tab: { flex: 1 },
+  tabContent: { padding: theme.spacing.xl },
+  pageTitle: { marginBottom: theme.spacing.md },
+  searchInput: {
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.input.border,
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    fontSize: theme.typography.input.fontSize,
+    backgroundColor: theme.input.background,
+    color: theme.input.text,
+  },
+  dashboardSection: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    gap: theme.spacing.sm,
+  },
+  dashboardPlaceholder: {
+    height: 180,
+    borderRadius: theme.radius.sm,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    borderStyle: "dashed",
+    backgroundColor: theme.colors.background.app,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: theme.spacing.sm,
+  },
+  pageHeader: {
+    padding: theme.spacing.xl,
+    paddingBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  sectionTitle: { marginBottom: theme.spacing.md, marginTop: theme.spacing.xl },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
+  metricsRow: { flexDirection: "row", marginBottom: theme.spacing.xl },
+  metricCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  metricSpacer: { width: theme.spacing.md },
+  flex: { flex: 1 },
+  center: {
+    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listContent: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingBottom: theme.spacing.xxxl,
+  },
+  deptCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    overflow: "hidden",
+  },
+  deptCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: theme.spacing.lg,
+  },
+  categorySection: {
+    backgroundColor: theme.colors.background.app,
+    padding: theme.spacing.md,
+  },
+  sectionHeader2: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
+  catRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.background.card,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.sm,
+    marginBottom: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  catRowActive: { borderColor: theme.colors.primary.blue },
+  catIndicator: {
+    width: 4,
+    height: 36,
+    borderRadius: 2,
+    marginRight: theme.spacing.md,
+  },
+  addTransactionBtn: {
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing.lg,
+    alignItems: "center",
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.background.card,
+  },
+  smallBtn: {
+    backgroundColor: theme.colors.primary.blue,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  transactionSection: {
+    backgroundColor: theme.colors.background.app,
+    padding: theme.spacing.md,
+    marginLeft: theme.spacing.md,
+  },
+  transactionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: theme.colors.background.card,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.sm,
+    marginBottom: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  kpiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  kpiCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    width: "47%",
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    gap: theme.spacing.xs,
+  },
+  kpiSelector: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  chip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background.card,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  chipSelected: {
+    backgroundColor: theme.colors.primary.blue,
+    borderColor: theme.colors.primary.blue,
+  },
+  chipUnavailable: { opacity: 0.4 },
+});
