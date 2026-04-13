@@ -29,7 +29,28 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         }
     }
 
+    const updateTransaction = async (id: string, amount: number, date: string, description: string | null): Promise<Transaction> => {
+        try {
+            const data = await transactionModel.updateTransaction(token, id, amount, date, description)
+            setTransactions(prev => prev.map(transaction => transaction.id === id ? { ...transaction, ...data } : transaction))
+            return data
+        } catch (e) {
+            setError((e as Error).message)
+            throw e
+        }
+    }
+
+    const deleteTransaction = async (id: string): Promise<void> => {
+        try {
+            await transactionModel.deleteTransaction(token, id)
+            setTransactions(prev => prev.filter(transaction => transaction.id !== id))
+        } catch (e) {
+            setError((e as Error).message)
+            throw e
+        }
+    }
+
     useEffect(() => { fetchTransactions() }, [fetchTransactions])
 
-    return { transactions, isLoading, error, addTransaction }
+    return { transactions, isLoading, error, addTransaction, updateTransaction, deleteTransaction }
 }

@@ -1,4 +1,4 @@
-import { getJson, postJsonAuth } from '../api/client'
+import { deleteJsonAuth, getJson, postJsonAuth, putJsonAuth } from '../api/client'
 
 export type Transaction = {
     id: string
@@ -24,4 +24,10 @@ export const transactionModel = {
 
     createTransaction: (token: string, amount: number, date: string, category_id: string, description: string | null) =>
         postJsonAuth<Transaction>('/transactions', { amount, date, category_id, description }, token)
+,
+    updateTransaction: (token: string, id: string, amount: number, date: string, description: string | null) =>
+        putJsonAuth<Transaction>(`/transactions/${id}`, { amount, date, description }, token),
+
+    deleteTransaction: (token: string, id: string) =>
+        deleteJsonAuth(`/transactions/${id}`, token)
 }

@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getJson, postJsonAuth } from '../api/client'
-
-type Department = {
-    id: string
-    name: string
-    is_active: boolean
-    created_at: string
-}
+import { Department, departmentModel } from '../models/departmentModel'
 
 export const useOrganisationViewModel = (token: string) => {
     const [departments, setDepartments] = useState<Department[]>([])
@@ -16,7 +9,7 @@ export const useOrganisationViewModel = (token: string) => {
     const fetchDepartments = useCallback(async () => {
         try {
             setIsLoading(true)
-            const data = await getJson<Department[]>('/departments', token)
+            const data = await departmentModel.getDepartments(token)
             setDepartments(data)
         } catch (e) {
             setError((e as Error).message)
@@ -27,14 +20,34 @@ export const useOrganisationViewModel = (token: string) => {
 
     const addDepartment = async (name: string) => {
         try {
-            const data = await postJsonAuth<Department>('/departments', { name }, token)
+            const data = await departmentModel.createDepartment(token, name)
             setDepartments(prev => [...prev, data])
         } catch (e) {
             setError((e as Error).message)
         }
     }
 
+    const updateDepartment = async (id: string, name: string) => {
+        try {
+            const data = await departmentModel.updateDepartment(token, id, name)
+            setDepartments(prev => prev.map(department => department.id === id ? data : department))
+        } catch (e) {
+            setError((e as Error).message)
+            throw e
+        }
+    }
+
+    const deleteDepartment = async (id: string) => {
+        try {
+            await departmentModel.deleteDepartment(token, id)
+            setDepartments(prev => prev.filter(department => department.id !== id))
+        } catch (e) {
+            setError((e as Error).message)
+            throw e
+        }
+    }
+
     useEffect(() => { fetchDepartments() }, [fetchDepartments])
 
-    return { departments, isLoading, error, addDepartment }
+    return { departments, isLoading, error, addDepartment, updateDepartment, deleteDepartment }
 }
