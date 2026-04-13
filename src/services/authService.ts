@@ -16,6 +16,8 @@ export const authService = {
             refreshToken: string
             expiresIn: number
             tokenType: string
+            fullName: string
+            role: 'admin' | 'manager' | 'employee' | 'auditor'
             organisationName: string
         }>('/auth/login', input)
     },

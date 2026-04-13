@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { Button, SafeAreaView, Text, TextInput, View } from 'react-native'
 import { useAuthViewModel } from '../../viewmodels/useSignupLoginViewModel'
 
-export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationName: string) => void }) => {
-    const { loading, error, message, signupOwner, login, token, organisationName: orgName } = useAuthViewModel()
+export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationName: string, role: 'admin' | 'manager' | 'employee' | 'auditor') => void }) => {
+    const { loading, error, message, signupOwner, login, token, organisationName: orgName, role } = useAuthViewModel()
     const [mode, setMode] = useState<'login' | 'signup'>('signup')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -13,8 +13,8 @@ export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationN
     const [cvr, setCvr] = useState('')
 
     React.useEffect(() => {
-        if (token) onLogin(token, orgName ?? '')
-    }, [token, onLogin, orgName])
+        if (token && role) onLogin(token, orgName ?? '', role)
+    }, [token, onLogin, orgName, role])
 
     const submit = async () => {
         if (mode === 'signup') {
