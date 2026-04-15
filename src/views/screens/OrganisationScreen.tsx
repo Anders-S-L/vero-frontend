@@ -176,9 +176,11 @@ function CategoryEditModal({
 export default function OrganisationScreen({
   token,
   organisationName,
+  userRole,
 }: {
   token: string;
   organisationName: string;
+  userRole: TeamRole;
 }) {
   const [activeTab, setActiveTab] = useState("overblik");
   const insets = useSafeAreaInsets();
