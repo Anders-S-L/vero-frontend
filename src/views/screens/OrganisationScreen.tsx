@@ -62,6 +62,59 @@ const getTransactionCategoryType = (transaction: Transaction): CategoryType =>
       ? "income"
       : "expense";
 
+type PeriodPreset =
+  | "currentMonth"
+  | "last30Days"
+  | "currentQuarter"
+  | "currentYear"
+  | "custom";
+
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getQuarterStart = (date: Date) =>
+  new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+
+const getPeriodRange = (preset: PeriodPreset) => {
+  const today = new Date();
+
+  switch (preset) {
+    case "last30Days": {
+      const from = new Date(today);
+      from.setDate(from.getDate() - 29);
+      return { from: formatDateForInput(from), to: formatDateForInput(today) };
+    }
+    case "currentQuarter":
+      return {
+        from: formatDateForInput(getQuarterStart(today)),
+        to: formatDateForInput(today),
+      };
+    case "currentYear":
+      return {
+        from: formatDateForInput(new Date(today.getFullYear(), 0, 1)),
+        to: formatDateForInput(today),
+      };
+    case "currentMonth":
+    default:
+      return {
+        from: formatDateForInput(
+          new Date(today.getFullYear(), today.getMonth(), 1),
+        ),
+        to: formatDateForInput(today),
+      };
+  }
+};
+
+const isValidIsoDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00`);
+  return !Number.isNaN(date.getTime()) && formatDateForInput(date) === value;
+};
+
 function TransactionEditModal({
   visible,
   amount,
@@ -1159,12 +1212,19 @@ function TransaktionerTab({ token }: { token: string }) {
 
 // ── DASHBOARDS TAB ────────────────────────────────────────────────────────────
 function DashboardsTab({ token }: { token: string }) {
-  const today = new Date();
-  const from = new Date(today.getFullYear(), today.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-  const to = today.toISOString().slice(0, 10);
-  const { kpis, isLoading, error } = useKpiViewModel(token, from, to);
+  const [selectedPeriodPreset, setSelectedPeriodPreset] =
+    useState<PeriodPreset>("currentMonth");
+  const [appliedPeriod, setAppliedPeriod] = useState(() =>
+    getPeriodRange("currentMonth"),
+  );
+  const [fromInput, setFromInput] = useState(() => appliedPeriod.from);
+  const [toInput, setToInput] = useState(() => appliedPeriod.to);
+  const [periodError, setPeriodError] = useState<string | null>(null);
+  const { kpis, isLoading, error } = useKpiViewModel(
+    token,
+    appliedPeriod.from,
+    appliedPeriod.to,
+  );
 
   const ALL_KPI_KEYS = [
     "revenue",
@@ -1199,10 +1259,50 @@ function DashboardsTab({ token }: { token: string }) {
   ]);
   const [showSelector, setShowSelector] = useState(false);
 
+  const periodOptions = [
+    { label: "Denne måned", value: "currentMonth" },
+    { label: "Seneste 30 dage", value: "last30Days" },
+    { label: "Dette kvartal", value: "currentQuarter" },
+    { label: "I år", value: "currentYear" },
+    { label: "Brugerdefineret", value: "custom" },
+  ];
+
   const toggleKpi = (key: KpiKey) => {
     setSelectedKpis((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
+  };
+
+  const applyPresetPeriod = (value: string) => {
+    const preset = value as PeriodPreset;
+    if (preset === "custom") {
+      setSelectedPeriodPreset("custom");
+      return;
+    }
+
+    const nextPeriod = getPeriodRange(preset);
+
+    setSelectedPeriodPreset(preset);
+    setFromInput(nextPeriod.from);
+    setToInput(nextPeriod.to);
+    setAppliedPeriod(nextPeriod);
+    setPeriodError(null);
+  };
+
+  const applyCustomPeriod = () => {
+    if (!isValidIsoDate(fromInput) || !isValidIsoDate(toInput)) {
+      setPeriodError("Datoer skal være i formatet YYYY-MM-DD.");
+      return;
+    }
+
+    if (fromInput > toInput) {
+      setPeriodError("'Fra' dato må ikke være efter 'Til' dato.");
+      return;
+    }
+
+    setAppliedPeriod({ from: fromInput, to: toInput });
+    setSelectedPeriodPreset("custom");
+    setPeriodError(null);
   };
 
   const formatValue = (value: number | null, unit: string) => {
@@ -1221,13 +1321,49 @@ function DashboardsTab({ token }: { token: string }) {
         Dashboard
       </AppText>
 
-      <AppText
-        variant="p"
-        color={theme.colors.text.secondary}
-        style={{ marginBottom: theme.spacing.lg }}
-      >
-        {from} – {to}
-      </AppText>
+      <View style={styles.periodCard}>
+        <DropdownField
+          label="Periode"
+          options={periodOptions}
+          value={selectedPeriodPreset}
+          onChange={applyPresetPeriod}
+        />
+
+        <View style={styles.periodInputRow}>
+          <View style={styles.periodInput}>
+            <InputField
+              label="Fra"
+              placeholder="YYYY-MM-DD"
+              value={fromInput}
+              onChangeText={setFromInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <View style={styles.periodInput}>
+            <InputField
+              label="Til"
+              placeholder="YYYY-MM-DD"
+              value={toInput}
+              onChangeText={setToInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+
+        {periodError && <AlertMessage type="error" message={periodError} />}
+
+        <PrimaryButton label="Anvend periode" onPress={applyCustomPeriod} />
+
+        <AppText
+          variant="p"
+          color={theme.colors.text.secondary}
+          style={styles.periodSummary}
+        >
+          Aktiv periode: {appliedPeriod.from} – {appliedPeriod.to}
+        </AppText>
+      </View>
 
       {error && <AlertMessage type="error" message={error} />}
 
@@ -1671,6 +1807,24 @@ const styles = StyleSheet.create({
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.background.cardBorder,
     gap: theme.spacing.xs,
+  },
+  periodCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    marginBottom: theme.spacing.lg,
+  },
+  periodInputRow: {
+    flexDirection: "row",
+    gap: theme.spacing.md,
+  },
+  periodInput: {
+    flex: 1,
+  },
+  periodSummary: {
+    marginTop: theme.spacing.md,
   },
   kpiSelector: {
     flexDirection: "row",
