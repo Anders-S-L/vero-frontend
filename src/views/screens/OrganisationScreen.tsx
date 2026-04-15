@@ -26,6 +26,7 @@ import { CategoryType } from "../../models/categoryModel";
 import { Department } from "../../models/departmentModel";
 import { Transaction } from "../../models/transactionModel";
 import { useCategoryViewModel } from "../../viewmodels/useCategoryViewModel";
+import { useKpiViewModel } from "../../viewmodels/useKpiViewModel";
 import { useOrganisationViewModel } from "../../viewmodels/useOrganisationViewModel";
 import { useTransactionViewModel } from "../../viewmodels/useTransactionViewModel";
 
@@ -200,7 +201,7 @@ export default function OrganisationScreen({
         )}
         {activeTab === "afdelinger" && <AfdelingerTab token={token} />}
         {activeTab === "transaktioner" && <TransaktionerTab token={token} />}
-        {activeTab === "dashboards" && <DashboardsTab />}
+        {activeTab === "dashboards" && <DashboardsTab token={token} />}
         {activeTab === "team" && <TeamTab />}
       </View>
       <BottomTabBar
@@ -306,8 +307,8 @@ function AfdelingerTab({ token }: { token: string }) {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } =
-    useOrganisationViewModel(token);
+  } = useOrganisationViewModel(token);
+
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deptName, setDeptName] = useState("");
@@ -340,7 +341,7 @@ function AfdelingerTab({ token }: { token: string }) {
       await updateDepartment(editingDepartment.id, editDeptName.trim());
       closeEditModal();
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -360,7 +361,7 @@ function AfdelingerTab({ token }: { token: string }) {
                 setSelectedDeptId(null);
               }
             } catch {
-              // Error state håndteres i viewmodel via `error`
+              // håndteres via error i viewmodel
             }
           },
         },
@@ -402,6 +403,7 @@ function AfdelingerTab({ token }: { token: string }) {
                 <AppText variant="h4" style={styles.flex}>
                   {item.name}
                 </AppText>
+
                 <View style={styles.inlineActions}>
                   <InlineActionButton
                     icon="create-outline"
@@ -413,6 +415,7 @@ function AfdelingerTab({ token }: { token: string }) {
                     onPress={() => handleDelete(item)}
                   />
                 </View>
+
                 <Ionicons
                   name={
                     selectedDeptId === item.id ? "chevron-up" : "chevron-down"
@@ -421,6 +424,7 @@ function AfdelingerTab({ token }: { token: string }) {
                   color={theme.colors.text.secondary}
                 />
               </TouchableOpacity>
+
               {selectedDeptId === item.id && (
                 <CategorySection token={token} departmentId={item.id} />
               )}
@@ -479,6 +483,7 @@ function CategorySection({
     updateCategory,
     deleteCategory,
   } = useCategoryViewModel(token, departmentId);
+
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [showCatModal, setShowCatModal] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
@@ -490,11 +495,11 @@ function CategorySection({
   const [editCatName, setEditCatName] = useState("");
   const [editCatType, setEditCatType] = useState<CategoryType>("expense");
 
-  // Transaktion state
   const [txCategoryId, setTxCategoryId] = useState("");
   const [txAmount, setTxAmount] = useState("");
   const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
   const [txDescription, setTxDescription] = useState("");
+
   const { addTransaction } = useTransactionViewModel(token, txCategoryId);
 
   const categoryOptions = categories.map((c) => ({
@@ -535,7 +540,7 @@ function CategorySection({
       await updateCategory(editingCategory.id, editCatName.trim(), editCatType);
       closeEditModal();
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -555,7 +560,7 @@ function CategorySection({
                 setSelectedCatId(null);
               }
             } catch {
-              // Error state håndteres i viewmodel via `error`
+              // håndteres via error i viewmodel
             }
           },
         },
@@ -565,6 +570,7 @@ function CategorySection({
 
   const handleAddTx = async () => {
     if (!txAmount.trim() || !txDescription.trim() || !txCategoryId) return;
+
     const parsedAmount = parseFloat(txAmount);
     if (Number.isNaN(parsedAmount)) return;
 
@@ -583,7 +589,7 @@ function CategorySection({
       setTxDescription("");
       setShowTxModal(false);
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -652,6 +658,7 @@ function CategorySection({
                         : "Afskrivning"}
                 </AppText>
               </View>
+
               <View style={styles.inlineActions}>
                 <InlineActionButton
                   icon="create-outline"
@@ -664,6 +671,7 @@ function CategorySection({
                 />
               </View>
             </TouchableOpacity>
+
             {selectedCatId === cat.id && (
               <TransactionSection
                 token={token}
@@ -769,13 +777,13 @@ function TransactionSection({
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, categoryId);
+
   const [showModal, setShowModal] = useState(false);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [description, setDescription] = useState("");
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(
-    null,
-  );
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -809,7 +817,7 @@ function TransactionSection({
       setDescription("");
       setShowModal(false);
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -830,7 +838,7 @@ function TransactionSection({
       );
       closeEditModal();
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -847,7 +855,7 @@ function TransactionSection({
             try {
               await deleteTransaction(transaction.id);
             } catch {
-              // Error state håndteres i viewmodel via `error`
+              // håndteres via error i viewmodel
             }
           },
         },
@@ -892,6 +900,7 @@ function TransactionSection({
                 {t.date}
               </AppText>
             </View>
+
             <View style={styles.transactionActions}>
               <AppText
                 variant="p"
@@ -904,6 +913,7 @@ function TransactionSection({
                 {t.amount > 0 ? "+" : ""}
                 {t.amount.toLocaleString()} kr
               </AppText>
+
               <View style={styles.inlineActions}>
                 <InlineActionButton
                   icon="create-outline"
@@ -964,12 +974,17 @@ function TransactionSection({
 
 // ── TRANSAKTIONER TAB ─────────────────────────────────────────────────────────
 function TransaktionerTab({ token }: { token: string }) {
-  const { transactions, isLoading, error, updateTransaction, deleteTransaction } =
-    useTransactionViewModel(token, "");
+  const {
+    transactions,
+    isLoading,
+    error,
+    updateTransaction,
+    deleteTransaction,
+  } = useTransactionViewModel(token, "");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(
-    null,
-  );
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -999,13 +1014,16 @@ function TransaktionerTab({ token }: { token: string }) {
     try {
       await updateTransaction(
         editingTransaction.id,
-        getSignedAmount(parsedAmount, getTransactionCategoryType(editingTransaction)),
+        getSignedAmount(
+          parsedAmount,
+          getTransactionCategoryType(editingTransaction),
+        ),
         editDate,
         editDescription.trim(),
       );
       closeEditModal();
     } catch {
-      // Error state håndteres i viewmodel via `error`
+      // håndteres via error i viewmodel
     }
   };
 
@@ -1022,7 +1040,7 @@ function TransaktionerTab({ token }: { token: string }) {
             try {
               await deleteTransaction(transaction.id);
             } catch {
-              // Error state håndteres i viewmodel via `error`
+              // håndteres via error i viewmodel
             }
           },
         },
@@ -1054,6 +1072,7 @@ function TransaktionerTab({ token }: { token: string }) {
       <AppText variant="h3" style={styles.pageTitle}>
         Transaktioner
       </AppText>
+
       <TextInput
         style={styles.searchInput}
         placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
@@ -1063,6 +1082,7 @@ function TransaktionerTab({ token }: { token: string }) {
         autoCapitalize="none"
         autoCorrect={false}
       />
+
       {error && <AlertMessage type="error" message={error} />}
 
       {isLoading ? (
@@ -1086,9 +1106,10 @@ function TransaktionerTab({ token }: { token: string }) {
                 {t.date}
               </AppText>
               <AppText variant="p" color={theme.colors.text.light}>
-                {t.categories?.departments?.name} • {t.categories?.name}{" "}
+                {t.categories?.departments?.name} • {t.categories?.name}
               </AppText>
             </View>
+
             <View style={styles.transactionActions}>
               <AppText
                 variant="p"
@@ -1101,6 +1122,7 @@ function TransaktionerTab({ token }: { token: string }) {
                 {t.amount > 0 ? "+" : ""}
                 {t.amount.toLocaleString()} kr
               </AppText>
+
               <View style={styles.inlineActions}>
                 <InlineActionButton
                   icon="create-outline"
@@ -1132,49 +1154,150 @@ function TransaktionerTab({ token }: { token: string }) {
   );
 }
 
-// ── DASHBOARDS TAB ─────────────────────────────────────────────────────────
-function DashboardsTab() {
+// ── DASHBOARDS TAB ────────────────────────────────────────────────────────────
+function DashboardsTab({ token }: { token: string }) {
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const to = today.toISOString().slice(0, 10);
+  const { kpis, isLoading, error } = useKpiViewModel(token, from, to);
+
+  const ALL_KPI_KEYS = [
+    "revenue",
+    "ebitda",
+    "netResult",
+    "cashFlow",
+    "burnRate",
+    "monthlyGrowthRate",
+    "grossProfit",
+    "grossMargin",
+    "variableCosts",
+    "contributionMargin",
+    "liquidityRatio",
+    "debtorDays",
+  ] as const;
+
+  type KpiKey = (typeof ALL_KPI_KEYS)[number];
+
+  const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([
+    "revenue",
+    "ebitda",
+    "cashFlow",
+    "burnRate",
+  ]);
+  const [showSelector, setShowSelector] = useState(false);
+
+  const toggleKpi = (key: KpiKey) => {
+    setSelectedKpis((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
+
+  const formatValue = (value: number | null, unit: string) => {
+    if (value === null) return "–";
+    if (unit === "currency")
+      return `${Math.round(value).toLocaleString("da-DK")} kr`;
+    if (unit === "percentage") return `${value.toFixed(1)}%`;
+    if (unit === "days") return `${value.toFixed(0)} dage`;
+    if (unit === "ratio") return value.toFixed(2);
+    return `${value}`;
+  };
+
   return (
     <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
       <AppText variant="h3" style={styles.pageTitle}>
-        Dashboards
+        Dashboard
       </AppText>
 
-      <View style={styles.dashboardSection}>
-        <AppText variant="h4">Income This Month</AppText>
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          Placeholder til graf eller KPI-komponent
-        </AppText>
-        <View style={styles.dashboardPlaceholder}>
-          <AppText variant="p" color={theme.colors.text.light}>
-            Graph placeholder
-          </AppText>
-        </View>
-      </View>
+      <AppText
+        variant="p"
+        color={theme.colors.text.secondary}
+        style={{ marginBottom: theme.spacing.lg }}
+      >
+        {from} – {to}
+      </AppText>
 
-      <View style={styles.dashboardSection}>
-        <AppText variant="h4">Expenses This Month</AppText>
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          Placeholder til udgiftsgraf eller oversigt
-        </AppText>
-        <View style={styles.dashboardPlaceholder}>
-          <AppText variant="p" color={theme.colors.text.light}>
-            Chart placeholder
-          </AppText>
-        </View>
-      </View>
+      {error && <AlertMessage type="error" message={error} />}
 
-      <View style={styles.dashboardSection}>
-        <AppText variant="h4">Net Result</AppText>
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          Placeholder til samlet KPI, trend eller forecast
-        </AppText>
-        <View style={styles.dashboardPlaceholder}>
-          <AppText variant="p" color={theme.colors.text.light}>
-            KPI placeholder
-          </AppText>
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary.blue} />
+      ) : (
+        <View style={styles.kpiGrid}>
+          {selectedKpis.map((key) => {
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            if (!metric) return null;
+
+            return (
+              <View key={key} style={styles.kpiCard}>
+                <AppText variant="p" color={theme.colors.text.secondary}>
+                  {metric.label}
+                </AppText>
+                <AppText
+                  variant="h4"
+                  color={
+                    metric.available
+                      ? theme.colors.text.primary
+                      : theme.colors.text.light
+                  }
+                >
+                  {metric.available
+                    ? formatValue(metric.value, metric.unit)
+                    : "–"}
+                </AppText>
+                {!metric.available && (
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.light}
+                    style={{ fontSize: 10 }}
+                  >
+                    {metric.reason}
+                  </AppText>
+                )}
+              </View>
+            );
+          })}
         </View>
-      </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.addTransactionBtn}
+        onPress={() => setShowSelector(!showSelector)}
+      >
+        <AppText variant="p" color={theme.colors.text.secondary}>
+          {showSelector ? "Luk" : "+ Vælg KPI'er"}
+        </AppText>
+      </TouchableOpacity>
+
+      {showSelector && (
+        <View style={styles.kpiSelector}>
+          {ALL_KPI_KEYS.map((key) => {
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            const isSelected = selectedKpis.includes(key);
+
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.chip,
+                  isSelected && styles.chipSelected,
+                  !metric?.available && styles.chipUnavailable,
+                ]}
+                onPress={() => toggleKpi(key)}
+              >
+                <AppText
+                  variant="p"
+                  color={
+                    isSelected ? theme.colors.white : theme.colors.text.primary
+                  }
+                >
+                  {metric?.label ?? key}
+                </AppText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -1216,26 +1339,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.input.fontSize,
     backgroundColor: theme.input.background,
     color: theme.input.text,
-  },
-  dashboardSection: {
-    backgroundColor: theme.colors.background.card,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    borderWidth: theme.borderWidth.thin,
-    borderColor: theme.colors.background.cardBorder,
-    gap: theme.spacing.sm,
-  },
-  dashboardPlaceholder: {
-    height: 180,
-    borderRadius: theme.radius.sm,
-    borderWidth: theme.borderWidth.thin,
-    borderColor: theme.colors.background.cardBorder,
-    borderStyle: "dashed",
-    backgroundColor: theme.colors.background.app,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: theme.spacing.sm,
   },
   pageHeader: {
     padding: theme.spacing.xl,
@@ -1284,12 +1387,6 @@ const styles = StyleSheet.create({
   categorySection: {
     backgroundColor: theme.colors.background.app,
     padding: theme.spacing.md,
-  },
-  sectionHeader2: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: theme.spacing.md,
   },
   catRow: {
     flexDirection: "row",
@@ -1354,5 +1451,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing.sm,
     marginLeft: theme.spacing.md,
+  },
+  kpiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  kpiCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    width: "47%",
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    gap: theme.spacing.xs,
+  },
+  kpiSelector: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  chip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background.card,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  chipSelected: {
+    backgroundColor: theme.colors.primary.blue,
+    borderColor: theme.colors.primary.blue,
+  },
+  chipUnavailable: {
+    opacity: 0.4,
   },
 });
