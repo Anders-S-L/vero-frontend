@@ -1183,8 +1183,16 @@ function DashboardsTab({ token }: { token: string }) {
   const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([
     "revenue",
     "ebitda",
+    "netResult",
     "cashFlow",
     "burnRate",
+    "monthlyGrowthRate",
+    "grossProfit",
+    "grossMargin",
+    "variableCosts",
+    "contributionMargin",
+    "liquidityRatio",
+    "debtorDays",
   ]);
   const [showSelector, setShowSelector] = useState(false);
 

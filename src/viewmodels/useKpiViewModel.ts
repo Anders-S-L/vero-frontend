@@ -10,7 +10,12 @@ export const useKpiViewModel = (token: string, from: string, to: string) => {
     if (!token || !from || !to) return;
     try {
       setIsLoading(true);
+      setError(null);
+
       const data = await kpiModel.getKpis(token, from, to);
+
+      console.log("KPI DATA:", JSON.stringify(data, null, 2));
+
       setKpis(data);
     } catch (e) {
       setError((e as Error).message);
