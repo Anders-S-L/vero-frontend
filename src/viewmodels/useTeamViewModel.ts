@@ -24,8 +24,8 @@ const normalizeMember = (raw: any): TeamMember | null => {
     if (!raw || typeof raw !== 'object') return null
 
     const id = String(raw.id ?? raw.profile_id ?? '')
-    const fullName = String(raw.full_name ?? raw.fullName ?? '')
-    const email = String(raw.email ?? '')
+    const fullName = String(raw.full_name ?? raw.fullName ?? raw.name ?? raw.user_metadata?.full_name ?? '')
+    const email = String(raw.email ?? raw.user_email ?? raw.invited_email ?? '')
     const role = (raw.role ?? 'employee') as TeamRole
     const departmentId = String(
         raw.department_id ?? raw.departmentId ?? raw.departments?.id ?? raw.department?.id ?? '',
