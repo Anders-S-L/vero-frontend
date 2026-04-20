@@ -24,6 +24,8 @@ export const theme = {
       success: "#10B981",
       warning: "#F59E0B",
       error: "#EF4444",
+      successBackground: "#D1FAE5",
+      warningBackground: "#FEF3C7",
     },
 
     kpi: {
@@ -36,6 +38,10 @@ export const theme = {
       contributionMargin: "#7C3AED",
       monthlyGrowthRate: "#06B6D4",
       bruttofortjeneste: "#0F766E",
+      netResult: "#10B981",
+      grossMargin: "#7C3AED",
+      liquidityRatio: "#2F6FED",
+      debtorDays: "#6B7280",
     },
 
     white: "#FFFFFF",

@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -18,14 +17,21 @@ import {
   BaseModal,
   BottomTabBar,
   DropdownField,
+  InfoCard,
   InlineActionButton,
   InputField,
+  KpiListCard,
   PrimaryButton,
 } from "../../components";
 import { theme } from "../../constants/theme";
 import { CategoryType } from "../../models/categoryModel";
 import { Department } from "../../models/departmentModel";
-import { KpiMetric } from "../../models/kpiModel";
+import {
+  FavoriteKpiKey,
+  FAVORITE_KPI_KEYS,
+  KpiMetric,
+  kpiModel,
+} from "../../models/kpiModel";
 import { Transaction } from "../../models/transactionModel";
 import { useCategoryViewModel } from "../../viewmodels/useCategoryViewModel";
 import { useKpiViewModel } from "../../viewmodels/useKpiViewModel";
@@ -111,11 +117,7 @@ const getPeriodRange = (preset: PeriodPreset) => {
   }
 };
 
-const isValidIsoDate = (value: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00`);
-  return !Number.isNaN(date.getTime()) && formatDateForInput(date) === value;
-};
+const DEFAULT_FAVORITE_KPIS = [...FAVORITE_KPI_KEYS];
 
 function TransactionEditModal({
   visible,
@@ -311,17 +313,19 @@ export default function OrganisationScreen({
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.topHeader,
-          { paddingTop: insets.top + theme.spacing.md },
-        ]}
-      >
-        <AppText variant="h4">{organisationName}</AppText>
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          Admin Panel
-        </AppText>
-      </View>
+      {activeTab !== "dashboards" && (
+        <View
+          style={[
+            styles.topHeader,
+            { paddingTop: insets.top + theme.spacing.md },
+          ]}
+        >
+          <AppText variant="h4">{organisationName}</AppText>
+          <AppText variant="p" color={theme.colors.text.secondary}>
+            Admin Panel
+          </AppText>
+        </View>
+      )}
       <View style={styles.content}>
         {activeTab === "overblik" && (
           <OverblikTab token={token} organisationName={organisationName} />
@@ -1283,100 +1287,75 @@ function TransaktionerTab({ token }: { token: string }) {
 
 // ── DASHBOARDS TAB ────────────────────────────────────────────────────────────
 function DashboardsTab({ token }: { token: string }) {
-  const [selectedPeriodPreset, setSelectedPeriodPreset] =
-    useState<PeriodPreset>("currentMonth");
-  const [appliedPeriod, setAppliedPeriod] = useState(() =>
-    getPeriodRange("currentMonth"),
-  );
-  const [fromInput, setFromInput] = useState(() => appliedPeriod.from);
-  const [toInput, setToInput] = useState(() => appliedPeriod.to);
-  const [periodError, setPeriodError] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  const appliedPeriod = getPeriodRange("currentMonth");
   const { kpis, isLoading, error } = useKpiViewModel(
     token,
     appliedPeriod.from,
     appliedPeriod.to,
   );
 
-  const ALL_KPI_KEYS = [
-    "revenue",
-    "ebitda",
-    "netResult",
-    "cashFlow",
-    "burnRate",
-    "monthlyGrowthRate",
-    "grossProfit",
-    "grossMargin",
-    "variableCosts",
-    "contributionMargin",
-    "liquidityRatio",
-    "debtorDays",
-  ] as const;
-
-  type KpiKey = (typeof ALL_KPI_KEYS)[number];
-
-  const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([
-    "revenue",
-    "ebitda",
-    "netResult",
-    "cashFlow",
-    "burnRate",
-    "monthlyGrowthRate",
-    "grossProfit",
-    "grossMargin",
-    "variableCosts",
-    "contributionMargin",
-    "liquidityRatio",
-    "debtorDays",
-  ]);
-  const [showSelector, setShowSelector] = useState(false);
+  const [favoriteKpis, setFavoriteKpis] = useState<FavoriteKpiKey[]>([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
   const [selectedKpiInfo, setSelectedKpiInfo] = useState<KpiMetric | null>(
     null,
   );
 
-  const periodOptions = [
-    { label: "Denne måned", value: "currentMonth" },
-    { label: "Seneste 30 dage", value: "last30Days" },
-    { label: "Dette kvartal", value: "currentQuarter" },
-    { label: "I år", value: "currentYear" },
-    { label: "Brugerdefineret", value: "custom" },
-  ];
+  useEffect(() => {
+    if (!token) return;
 
-  const toggleKpi = (key: KpiKey) => {
-    setSelectedKpis((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  };
+    let cancelled = false;
 
-  const applyPresetPeriod = (value: string) => {
-    const preset = value as PeriodPreset;
-    if (preset === "custom") {
-      setSelectedPeriodPreset("custom");
-      return;
+    const loadFavoriteKpis = async () => {
+      try {
+        setFavoriteError(null);
+        const favorites = await kpiModel.getFavoriteKpis(token);
+
+        if (!cancelled) {
+          setFavoriteKpis(favorites);
+          setFavoritesLoaded(true);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setFavoriteKpis(DEFAULT_FAVORITE_KPIS);
+          setFavoriteError((e as Error).message);
+          setFavoritesLoaded(true);
+        }
+      }
+    };
+
+    setFavoritesLoaded(false);
+    loadFavoriteKpis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const toggleKpi = async (key: FavoriteKpiKey) => {
+    if (!token) return;
+
+    const nextFavorites = favoriteKpis.includes(key)
+      ? favoriteKpis.filter((k) => k !== key)
+      : [...favoriteKpis, key];
+
+    setFavoriteKpis(nextFavorites);
+    setFavoriteError(null);
+
+    try {
+      const savedFavorites = await kpiModel.updateFavoriteKpis(
+        token,
+        nextFavorites,
+      );
+      setFavoriteKpis(savedFavorites);
+    } catch (e) {
+      setFavoriteError(
+        `Favoritten er valgt lokalt, men kunne ikke gemmes på serveren: ${
+          (e as Error).message
+        }`,
+      );
     }
-
-    const nextPeriod = getPeriodRange(preset);
-
-    setSelectedPeriodPreset(preset);
-    setFromInput(nextPeriod.from);
-    setToInput(nextPeriod.to);
-    setAppliedPeriod(nextPeriod);
-    setPeriodError(null);
-  };
-
-  const applyCustomPeriod = () => {
-    if (!isValidIsoDate(fromInput) || !isValidIsoDate(toInput)) {
-      setPeriodError("Datoer skal være i formatet YYYY-MM-DD.");
-      return;
-    }
-
-    if (fromInput > toInput) {
-      setPeriodError("'Fra' dato må ikke være efter 'Til' dato.");
-      return;
-    }
-
-    setAppliedPeriod({ from: fromInput, to: toInput });
-    setSelectedPeriodPreset("custom");
-    setPeriodError(null);
   };
 
   const formatValue = (value: number | null, unit: string) => {
@@ -1390,115 +1369,74 @@ function DashboardsTab({ token }: { token: string }) {
   };
 
   return (
-    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-      <AppText variant="h3" style={styles.pageTitle}>
-        Dashboard
-      </AppText>
+    <ScrollView
+      style={styles.kpiPage}
+      contentContainerStyle={[
+        styles.kpiPageContent,
+        { paddingTop: insets.top + theme.spacing.lg },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.kpiBody}>
+        <View style={styles.kpiHeader}>
+          <AppText variant="h3" color={theme.colors.text.primary}>
+            Dashboards
+          </AppText>
+          <AppText variant="p" color={theme.colors.text.secondary}>
+            Vælg de KPIer, der skal vises på Home.
+          </AppText>
+        </View>
 
-      <View style={styles.periodCard}>
-        <DropdownField
-          label="Periode"
-          options={periodOptions}
-          value={selectedPeriodPreset}
-          onChange={applyPresetPeriod}
+        <InfoCard
+          tone="blue"
+          title="Vælg dine key metrics"
+          text="Tryk på ☆ for at tilføje en KPI til Home siden"
+          icon={
+            <Ionicons
+              name="star-outline"
+              size={22}
+              color={theme.colors.primary.blue}
+            />
+          }
         />
 
-        <View style={styles.periodInputRow}>
-          <View style={styles.periodInput}>
-            <InputField
-              label="Fra"
-              placeholder="YYYY-MM-DD"
-              value={fromInput}
-              onChangeText={setFromInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-          <View style={styles.periodInput}>
-            <InputField
-              label="Til"
-              placeholder="YYYY-MM-DD"
-              value={toInput}
-              onChangeText={setToInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
+        {error && <AlertMessage type="error" message={error} />}
+        {favoriteError && <AlertMessage type="error" message={favoriteError} />}
 
-        {periodError && <AlertMessage type="error" message={periodError} />}
-
-        <PrimaryButton label="Anvend periode" onPress={applyCustomPeriod} />
-
-        <AppText
-          variant="p"
-          color={theme.colors.text.secondary}
-          style={styles.periodSummary}
-        >
-          Aktiv periode: {appliedPeriod.from} – {appliedPeriod.to}
+        <AppText variant="h4" style={styles.kpiListTitle}>
+          Alle KPIer
         </AppText>
-      </View>
 
-      {error && <AlertMessage type="error" message={error} />}
+        {isLoading || !favoritesLoaded ? (
+          <ActivityIndicator color={theme.colors.primary.blue} />
+        ) : (
+          <View style={styles.kpiList}>
+            {FAVORITE_KPI_KEYS.map((key) => {
+              const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+              if (!metric) return null;
 
-      {isLoading ? (
-        <ActivityIndicator color={theme.colors.primary.blue} />
-      ) : (
-        <View style={styles.kpiGrid}>
-          {selectedKpis.map((key) => {
-            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
-            if (!metric) return null;
+              const isFavorite = favoriteKpis.includes(key);
 
-            return (
-              <View key={key} style={styles.kpiCard}>
-                <View style={styles.kpiCardHeader}>
-                  <AppText
-                    variant="p"
-                    color={theme.colors.text.secondary}
-                    style={styles.kpiCardTitle}
-                  >
-                    {metric.label}
-                  </AppText>
-                  <Pressable
-                    onPress={() => setSelectedKpiInfo(metric)}
-                    hitSlop={8}
-                    style={styles.kpiInfoButton}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Vis info om ${metric.label}`}
-                  >
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={18}
-                      color={theme.colors.text.secondary}
-                    />
-                  </Pressable>
-                </View>
-                <AppText
-                  variant="h4"
-                  color={
+              return (
+                <KpiListCard
+                  key={key}
+                  kpiKey={key}
+                  title={metric.label}
+                  value={
                     metric.available
-                      ? theme.colors.text.primary
-                      : theme.colors.text.light
+                      ? formatValue(metric.value, metric.unit)
+                      : "–"
                   }
-                >
-                  {metric.available
-                    ? formatValue(metric.value, metric.unit)
-                    : "–"}
-                </AppText>
-                {!metric.available && (
-                  <AppText
-                    variant="p"
-                    color={theme.colors.text.light}
-                    style={{ fontSize: 10 }}
-                  >
-                    {metric.reason}
-                  </AppText>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      )}
+                  available={metric.available}
+                  reason={metric.reason}
+                  isFavorite={isFavorite}
+                  onPress={() => setSelectedKpiInfo(metric)}
+                  onToggleFavorite={() => toggleKpi(key)}
+                />
+              );
+            })}
+          </View>
+        )}
 
       <KpiInfoModal
         metric={selectedKpiInfo}
@@ -1506,44 +1444,7 @@ function DashboardsTab({ token }: { token: string }) {
         onClose={() => setSelectedKpiInfo(null)}
       />
 
-      <TouchableOpacity
-        style={styles.addTransactionBtn}
-        onPress={() => setShowSelector(!showSelector)}
-      >
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          {showSelector ? "Luk" : "+ Vælg KPI'er"}
-        </AppText>
-      </TouchableOpacity>
-
-      {showSelector && (
-        <View style={styles.kpiSelector}>
-          {ALL_KPI_KEYS.map((key) => {
-            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
-            const isSelected = selectedKpis.includes(key);
-
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.chip,
-                  isSelected && styles.chipSelected,
-                  !metric?.available && styles.chipUnavailable,
-                ]}
-                onPress={() => toggleKpi(key)}
-              >
-                <AppText
-                  variant="p"
-                  color={
-                    isSelected ? theme.colors.white : theme.colors.text.primary
-                  }
-                >
-                  {metric?.label ?? key}
-                </AppText>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+      </View>
     </ScrollView>
   );
 }
@@ -1892,6 +1793,26 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     marginLeft: theme.spacing.md,
   },
+  kpiPage: {
+    flex: 1,
+    backgroundColor: theme.colors.background.app,
+  },
+  kpiPageContent: {
+    paddingBottom: theme.spacing.xxxl,
+  },
+  kpiBody: {
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.lg,
+  },
+  kpiHeader: {
+    gap: theme.spacing.xs,
+  },
+  kpiListTitle: {
+    color: theme.colors.text.primary,
+  },
+  kpiList: {
+    gap: theme.spacing.md,
+  },
   kpiGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1916,8 +1837,22 @@ const styles = StyleSheet.create({
   kpiCardTitle: {
     flex: 1,
   },
+  kpiCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
   kpiInfoButton: {
     padding: 2,
+  },
+  emptyStateCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.lg,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
   },
   kpiInfoScroll: {
     maxHeight: 360,
@@ -2035,9 +1970,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
   },
   statusActive: {
-    backgroundColor: "#D1FAE5",
+    backgroundColor: theme.colors.status.successBackground,
   },
   statusPending: {
-    backgroundColor: "#FEF3C7",
+    backgroundColor: theme.colors.status.warningBackground,
   },
 });
