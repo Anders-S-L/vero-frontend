@@ -6,6 +6,8 @@ export type KpiMetric = {
   unit: "currency" | "percentage" | "days" | "ratio";
   available: boolean;
   reason?: string;
+  definition?: string | null;
+  calculationExample?: string[] | null;
 };
 
 export type KpiMetrics = {

@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -24,6 +25,7 @@ import {
 import { theme } from "../../constants/theme";
 import { CategoryType } from "../../models/categoryModel";
 import { Department } from "../../models/departmentModel";
+import { KpiMetric } from "../../models/kpiModel";
 import { Transaction } from "../../models/transactionModel";
 import { useCategoryViewModel } from "../../viewmodels/useCategoryViewModel";
 import { useKpiViewModel } from "../../viewmodels/useKpiViewModel";
@@ -222,6 +224,75 @@ function CategoryEditModal({
         onChange={(value) => onTypeChange(value as CategoryType)}
       />
       <PrimaryButton label="Gem ændringer" onPress={onSave} />
+    </BaseModal>
+  );
+}
+
+function KpiInfoModal({
+  metric,
+  visible,
+  onClose,
+}: {
+  metric: KpiMetric | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const definition =
+    metric?.definition?.trim() ||
+    "Definition er ikke tilgængelig for denne KPI endnu.";
+  const calculationExamples =
+    metric?.calculationExample?.filter((example) => example?.trim()) ?? [];
+
+  return (
+    <BaseModal
+      visible={visible}
+      title={metric?.label ?? "KPI-info"}
+      onClose={onClose}
+    >
+      <ScrollView
+        style={styles.kpiInfoScroll}
+        contentContainerStyle={styles.kpiInfoContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.kpiInfoSection}>
+          <AppText variant="p" style={styles.kpiInfoSectionTitle}>
+            Definition
+          </AppText>
+          <AppText variant="p" color={theme.colors.text.secondary}>
+            {definition}
+          </AppText>
+        </View>
+
+        <View style={styles.kpiInfoSection}>
+          <AppText variant="p" style={styles.kpiInfoSectionTitle}>
+            Beregningseksempel
+          </AppText>
+
+          {calculationExamples.length > 0 ? (
+            calculationExamples.map((example, index) => (
+              <View
+                key={`${metric?.label ?? "kpi"}-${index}`}
+                style={styles.kpiInfoBulletRow}
+              >
+                <AppText variant="p" style={styles.kpiInfoBullet}>
+                  •
+                </AppText>
+                <AppText
+                  variant="p"
+                  color={theme.colors.text.secondary}
+                  style={styles.kpiInfoBulletText}
+                >
+                  {example}
+                </AppText>
+              </View>
+            ))
+          ) : (
+            <AppText variant="p" color={theme.colors.text.secondary}>
+              Intet beregningseksempel tilgængeligt endnu.
+            </AppText>
+          )}
+        </View>
+      </ScrollView>
     </BaseModal>
   );
 }
@@ -1258,6 +1329,9 @@ function DashboardsTab({ token }: { token: string }) {
     "debtorDays",
   ]);
   const [showSelector, setShowSelector] = useState(false);
+  const [selectedKpiInfo, setSelectedKpiInfo] = useState<KpiMetric | null>(
+    null,
+  );
 
   const periodOptions = [
     { label: "Denne måned", value: "currentMonth" },
@@ -1377,9 +1451,28 @@ function DashboardsTab({ token }: { token: string }) {
 
             return (
               <View key={key} style={styles.kpiCard}>
-                <AppText variant="p" color={theme.colors.text.secondary}>
-                  {metric.label}
-                </AppText>
+                <View style={styles.kpiCardHeader}>
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.secondary}
+                    style={styles.kpiCardTitle}
+                  >
+                    {metric.label}
+                  </AppText>
+                  <Pressable
+                    onPress={() => setSelectedKpiInfo(metric)}
+                    hitSlop={8}
+                    style={styles.kpiInfoButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Vis info om ${metric.label}`}
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={18}
+                      color={theme.colors.text.secondary}
+                    />
+                  </Pressable>
+                </View>
                 <AppText
                   variant="h4"
                   color={
@@ -1406,6 +1499,12 @@ function DashboardsTab({ token }: { token: string }) {
           })}
         </View>
       )}
+
+      <KpiInfoModal
+        metric={selectedKpiInfo}
+        visible={selectedKpiInfo !== null}
+        onClose={() => setSelectedKpiInfo(null)}
+      />
 
       <TouchableOpacity
         style={styles.addTransactionBtn}
@@ -1807,6 +1906,44 @@ const styles = StyleSheet.create({
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.background.cardBorder,
     gap: theme.spacing.xs,
+  },
+  kpiCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  kpiCardTitle: {
+    flex: 1,
+  },
+  kpiInfoButton: {
+    padding: 2,
+  },
+  kpiInfoScroll: {
+    maxHeight: 360,
+  },
+  kpiInfoContent: {
+    gap: theme.spacing.lg,
+    paddingBottom: theme.spacing.xs,
+  },
+  kpiInfoSection: {
+    gap: theme.spacing.sm,
+  },
+  kpiInfoSectionTitle: {
+    fontWeight: "700",
+    color: theme.colors.text.primary,
+  },
+  kpiInfoBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing.sm,
+  },
+  kpiInfoBullet: {
+    color: theme.colors.text.primary,
+    lineHeight: 20,
+  },
+  kpiInfoBulletText: {
+    flex: 1,
   },
   periodCard: {
     backgroundColor: theme.colors.background.card,
