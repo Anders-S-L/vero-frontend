@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +26,7 @@ import {
   PrimaryButton,
 } from "../../components";
 import { theme } from "../../constants/theme";
-import { CategoryType } from "../../models/categoryModel";
+import { categoryModel, CategoryType } from "../../models/categoryModel";
 import { Department } from "../../models/departmentModel";
 import { KpiMetric } from "../../models/kpiModel";
 import { Transaction } from "../../models/transactionModel";
@@ -39,8 +42,7 @@ const getSignedAmount = (amount: number, categoryType: CategoryType) => {
 };
 
 const TABS = [
-  { key: "overblik", label: "Overblik", icon: "grid-outline" as const },
-  { key: "afdelinger", label: "Afdelinger", icon: "business-outline" as const },
+  { key: "overblik", label: "Home", icon: "home-outline" as const },
   {
     key: "transaktioner",
     label: "Transaktioner",
@@ -48,11 +50,455 @@ const TABS = [
   },
   {
     key: "dashboards",
-    label: "Dashboards",
+    label: "KPIs",
     icon: "stats-chart-outline" as const,
+  },
+];
+
+const SETTINGS_DESTINATIONS = [
+  {
+    key: "afdelinger",
+    label: "Afdelinger",
+    description: "Administrer afdelinger og kategorier",
+    icon: "business-outline" as const,
   },
   { key: "team", label: "Team", icon: "people-outline" as const },
 ];
+
+const SCREEN_META = {
+  overblik: {
+    title: "Home",
+    subtitle: "Overblik over organisationen",
+  },
+  dashboards: {
+    title: "KPIs",
+    subtitle: "Nøgletal og performance",
+  },
+  transaktioner: {
+    title: "Transaktioner",
+    subtitle: "Søg og administrer transaktioner",
+  },
+  afdelinger: {
+    title: "Afdelinger",
+    subtitle: "Administrer afdelinger og kategorier",
+  },
+  team: {
+    title: "Team",
+    subtitle: "Inviter og se medarbejdere",
+  },
+} as const;
+
+type ScreenKey = keyof typeof SCREEN_META;
+
+type TransactionType = "income" | "expense";
+
+type OrganisationCategoryOption = {
+  label: string;
+  value: string;
+  type: CategoryType;
+};
+
+const getTransactionTypeFromCategory = (
+  categoryType: CategoryType,
+): TransactionType => (categoryType === "income" ? "income" : "expense");
+
+const normalizeAmountInputToRaw = (value: string) => {
+  const sanitized = value.replace(/\s/g, "").replace(/\./g, "");
+  const [integerRaw, ...decimalParts] = sanitized.split(",");
+  const integerDigits = integerRaw.replace(/\D/g, "");
+  const decimalDigits = decimalParts.join("").replace(/\D/g, "").slice(0, 2);
+  const hasDecimalSeparator = sanitized.includes(",");
+
+  if (!integerDigits && !hasDecimalSeparator) {
+    return "";
+  }
+
+  const normalizedInteger = integerDigits.replace(/^0+(?=\d)/, "") || "0";
+
+  if (!hasDecimalSeparator) {
+    return normalizedInteger;
+  }
+
+  if (decimalDigits.length === 0) {
+    return `${normalizedInteger}.`;
+  }
+
+  return `${normalizedInteger}.${decimalDigits}`;
+};
+
+const formatRawAmountForDisplay = (rawValue: string) => {
+  if (!rawValue) return "";
+
+  const [integerRaw, decimalRaw] = rawValue.split(".");
+  const integerDigits = integerRaw.replace(/\D/g, "");
+
+  if (!integerDigits) return "";
+
+  const formattedInteger = Number(integerDigits).toLocaleString("da-DK");
+
+  if (decimalRaw === undefined) {
+    return formattedInteger;
+  }
+
+  return `${formattedInteger},${decimalRaw}`;
+};
+
+const formatDisplayDate = (date: Date) => {
+  const day = `${date.getDate()}`.padStart(2, "0");
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+const formatDateInput = (value: string) => {
+  const digitsOnly = value.replace(/\D/g, "").slice(0, 8);
+
+  if (digitsOnly.length <= 2) return digitsOnly;
+  if (digitsOnly.length <= 4) {
+    return `${digitsOnly.slice(0, 2)}-${digitsOnly.slice(2)}`;
+  }
+
+  return `${digitsOnly.slice(0, 2)}-${digitsOnly.slice(2, 4)}-${digitsOnly.slice(4)}`;
+};
+
+const isValidDisplayDate = (value: string) => {
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return false;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+};
+
+const toApiDate = (value: string) => {
+  const [day, month, year] = value.split("-");
+  return `${year}-${month}-${day}`;
+};
+
+function TransactionTypeSegmentedControl({
+  value,
+  onChange,
+}: {
+  value: TransactionType;
+  onChange: (value: TransactionType) => void;
+}) {
+  return (
+    <View style={styles.formField}>
+      <AppText
+        variant="p"
+        color={theme.colors.text.secondary}
+        style={styles.fieldLabel}
+      >
+        Type
+      </AppText>
+      <View style={styles.segmentedControl}>
+        {[
+          { label: "Indtægt", value: "income" as const },
+          { label: "Udgift", value: "expense" as const },
+        ].map((option) => {
+          const isActive = option.value === value;
+
+          return (
+            <Pressable
+              key={option.value}
+              style={[
+                styles.segmentedOption,
+                isActive && styles.segmentedOptionActive,
+              ]}
+              onPress={() => onChange(option.value)}
+            >
+              <AppText
+                variant="p"
+                color={
+                  isActive ? theme.colors.white : theme.colors.text.secondary
+                }
+                style={styles.segmentedOptionLabel}
+              >
+                {option.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function useOrganisationCategoryOptions(token: string) {
+  const { departments } = useOrganisationViewModel(token);
+  const [categories, setCategories] = useState<OrganisationCategoryOption[]>(
+    [],
+  );
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchCategoryOptions = useCallback(async () => {
+    if (!token || departments.length === 0) {
+      setCategories([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const categoryGroups = await Promise.all(
+        departments.map(async (department) => {
+          const departmentCategories = await categoryModel.getCategories(
+            token,
+            department.id,
+          );
+
+          return departmentCategories.map((category) => ({
+            label: `${department.name} • ${category.name}`,
+            value: category.id,
+            type: category.type,
+          }));
+        }),
+      );
+
+      setCategories(categoryGroups.flat());
+    } catch {
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [departments, token]);
+
+  useEffect(() => {
+    fetchCategoryOptions();
+  }, [fetchCategoryOptions]);
+
+  return { categories, isLoading };
+}
+
+function CreateTransactionSheet({
+  visible,
+  onClose,
+  transactionType,
+  onTransactionTypeChange,
+  amount,
+  onAmountChange,
+  categoryId,
+  onCategoryChange,
+  categoryOptions,
+  categoryLoading,
+  date,
+  onDateChange,
+  description,
+  onDescriptionChange,
+  onSubmit,
+  isSubmitting,
+  submitDisabled,
+  errorMessage,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  transactionType: TransactionType;
+  onTransactionTypeChange: (value: TransactionType) => void;
+  amount: string;
+  onAmountChange: (value: string) => void;
+  categoryId: string;
+  onCategoryChange: (value: string) => void;
+  categoryOptions: { label: string; value: string }[];
+  categoryLoading: boolean;
+  date: string;
+  onDateChange: (value: string) => void;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+  submitDisabled: boolean;
+  errorMessage: string | null;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.sheetOverlay}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.sheetKeyboardWrapper}
+          pointerEvents="box-none"
+        >
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <AppText variant="h4">Tilføj transaktion</AppText>
+              <Pressable
+                onPress={onClose}
+                hitSlop={8}
+                style={styles.sheetCloseButton}
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={theme.colors.text.primary}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.sheetScroll}
+              contentContainerStyle={styles.sheetContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              nestedScrollEnabled
+            >
+              {errorMessage ? (
+                <AlertMessage type="error" message={errorMessage} />
+              ) : null}
+
+              <TransactionTypeSegmentedControl
+                value={transactionType}
+                onChange={onTransactionTypeChange}
+              />
+
+              <InputField
+                label="Beløb"
+                placeholder="fx 5000"
+                value={amount}
+                onChangeText={onAmountChange}
+                keyboardType="decimal-pad"
+              />
+
+              {categoryLoading ? (
+                <View style={styles.formField}>
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.secondary}
+                    style={styles.fieldLabel}
+                  >
+                    Kategori
+                  </AppText>
+                  <View style={styles.loadingField}>
+                    <ActivityIndicator color={theme.colors.primary.blue} />
+                  </View>
+                </View>
+              ) : (
+                <DropdownField
+                  label="Kategori"
+                  options={categoryOptions}
+                  value={categoryId}
+                  onChange={onCategoryChange}
+                />
+              )}
+
+              <InputField
+                label="Dato"
+                placeholder="DD-MM-YYYY"
+                value={date}
+                onChangeText={onDateChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="number-pad"
+              />
+
+              <InputField
+                label="Beskrivelse"
+                placeholder="Beskrivelse"
+                value={description}
+                onChangeText={onDescriptionChange}
+              />
+            </ScrollView>
+
+            <View style={styles.sheetFooter}>
+              <PrimaryButton
+                label="Gem transaktion"
+                onPress={onSubmit}
+                loading={isSubmitting}
+                disabled={submitDisabled}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
+
+function SettingsMenu({
+  visible,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (key: ScreenKey) => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.settingsOverlay} onPress={onClose}>
+        <Pressable
+          style={styles.settingsCard}
+          onPress={(event) => event.stopPropagation()}
+        >
+          <View style={styles.settingsHeader}>
+            <AppText variant="h4">Indstillinger</AppText>
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={styles.settingsCloseButton}
+            >
+              <Ionicons
+                name="close"
+                size={20}
+                color={theme.colors.text.primary}
+              />
+            </Pressable>
+          </View>
+
+          {SETTINGS_DESTINATIONS.map((item) => (
+            <Pressable
+              key={item.key}
+              style={styles.settingsItem}
+              onPress={() => onSelect(item.key as ScreenKey)}
+            >
+              <View style={styles.settingsItemIcon}>
+                <Ionicons
+                  name={item.icon}
+                  size={20}
+                  color={theme.colors.primary.blue}
+                />
+              </View>
+              <View style={styles.flex}>
+                <AppText variant="p" style={styles.settingsItemTitle}>
+                  {item.label}
+                </AppText>
+                {"description" in item ? (
+                  <AppText variant="p" color={theme.colors.text.secondary}>
+                    {item.description}
+                  </AppText>
+                ) : (
+                  <AppText variant="p" color={theme.colors.text.secondary}>
+                    Inviter og administrer medarbejdere
+                  </AppText>
+                )}
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={theme.colors.text.light}
+              />
+            </Pressable>
+          ))}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 const getTransactionCategoryType = (transaction: Transaction): CategoryType =>
   transaction.categories?.type === "income" ||
@@ -306,8 +752,192 @@ export default function OrganisationScreen({
   organisationName: string;
   userRole: TeamRole;
 }) {
-  const [activeTab, setActiveTab] = useState("overblik");
+  const [activeTab, setActiveTab] = useState<ScreenKey>("overblik");
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [showCreateTransactionSheet, setShowCreateTransactionSheet] =
+    useState(false);
+  const [transactionType, setTransactionType] =
+    useState<TransactionType>("expense");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [transactionAmountRaw, setTransactionAmountRaw] = useState("");
+  const [transactionDate, setTransactionDate] = useState(() =>
+    formatDisplayDate(new Date()),
+  );
+  const [transactionDescription, setTransactionDescription] = useState("");
+  const [isSavingTransaction, setIsSavingTransaction] = useState(false);
+  const [createTransactionError, setCreateTransactionError] = useState<
+    string | null
+  >(null);
+  const [transactionRefreshVersion, setTransactionRefreshVersion] = useState(0);
+  const [dashboardRefreshVersion, setDashboardRefreshVersion] = useState(0);
   const insets = useSafeAreaInsets();
+  const activeScreenMeta = SCREEN_META[activeTab];
+  const { addTransaction, fetchTransactions } = useTransactionViewModel(
+    token,
+    "",
+  );
+  const { categories, isLoading: isLoadingCategories } =
+    useOrganisationCategoryOptions(token);
+  const categoryOptions = useMemo(
+    () =>
+      categories
+        .filter(
+          (category) =>
+            getTransactionTypeFromCategory(category.type) === transactionType,
+        )
+        .map((category) => ({
+          label: category.label,
+          value: category.value,
+        })),
+    [categories, transactionType],
+  );
+
+  useEffect(() => {
+    if (
+      selectedCategoryId &&
+      categoryOptions.some((category) => category.value === selectedCategoryId)
+    ) {
+      return;
+    }
+
+    setSelectedCategoryId(categoryOptions[0]?.value ?? "");
+  }, [categoryOptions, selectedCategoryId]);
+
+  const handleSelectSettingsDestination = (screen: ScreenKey) => {
+    setActiveTab(screen);
+    setSettingsVisible(false);
+  };
+
+  const resetCreateTransactionForm = () => {
+    setTransactionAmountRaw("");
+    setTransactionDescription("");
+    setTransactionDate(formatDisplayDate(new Date()));
+    setTransactionType("expense");
+    setSelectedCategoryId("");
+    setCreateTransactionError(null);
+  };
+
+  const openCreateTransactionSheet = () => {
+    resetCreateTransactionForm();
+    setShowCreateTransactionSheet(true);
+  };
+
+  const closeCreateTransactionSheet = () => {
+    setShowCreateTransactionSheet(false);
+    resetCreateTransactionForm();
+  };
+
+  const handleTransactionAmountChange = (value: string) => {
+    setTransactionAmountRaw(normalizeAmountInputToRaw(value));
+    if (createTransactionError) {
+      setCreateTransactionError(null);
+    }
+  };
+
+  const handleTransactionDateChange = (value: string) => {
+    setTransactionDate(formatDateInput(value));
+    if (createTransactionError) {
+      setCreateTransactionError(null);
+    }
+  };
+
+  const handleCreateTransaction = async () => {
+    setCreateTransactionError(null);
+
+    if (!selectedCategoryId) {
+      setCreateTransactionError("Vælg en kategori før du gemmer.");
+      return;
+    }
+
+    if (!transactionAmountRaw.trim()) {
+      setCreateTransactionError("Indtast et beløb før du gemmer.");
+      return;
+    }
+
+    if (!transactionDescription.trim()) {
+      setCreateTransactionError("Indtast en beskrivelse før du gemmer.");
+      return;
+    }
+
+    const parsedAmount = Number(transactionAmountRaw);
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      setCreateTransactionError("Beløb skal være et gyldigt tal større end 0.");
+      return;
+    }
+
+    if (!isValidDisplayDate(transactionDate)) {
+      setCreateTransactionError(
+        "Dato skal være gyldig og i formatet DD-MM-YYYY.",
+      );
+      return;
+    }
+
+    const selectedCategory = categories.find(
+      (category) => category.value === selectedCategoryId,
+    );
+    if (!selectedCategory) {
+      setCreateTransactionError("Den valgte kategori kunne ikke findes.");
+      return;
+    }
+
+    if (
+      getTransactionTypeFromCategory(selectedCategory.type) !== transactionType
+    ) {
+      setCreateTransactionError(
+        "Den valgte kategori matcher ikke den valgte type.",
+      );
+      return;
+    }
+
+    try {
+      setIsSavingTransaction(true);
+      await addTransaction(
+        getSignedAmount(parsedAmount, selectedCategory.type),
+        toApiDate(transactionDate),
+        transactionDescription.trim() || null,
+        selectedCategoryId,
+      );
+      await fetchTransactions();
+      setTransactionRefreshVersion((current) => current + 1);
+      setDashboardRefreshVersion((current) => current + 1);
+      closeCreateTransactionSheet();
+    } catch (error) {
+      setCreateTransactionError(
+        (error as Error).message ||
+          "Transaktionen kunne ikke gemmes. Prøv igen.",
+      );
+    } finally {
+      setIsSavingTransaction(false);
+    }
+  };
+
+  const renderActiveScreen = () => {
+    if (activeTab === "overblik") {
+      return <OverblikTab token={token} organisationName={organisationName} />;
+    }
+
+    if (activeTab === "afdelinger") {
+      return <AfdelingerTab token={token} />;
+    }
+
+    if (activeTab === "transaktioner") {
+      return (
+        <TransaktionerTab
+          token={token}
+          refreshVersion={transactionRefreshVersion}
+          onOpenCreateTransaction={openCreateTransactionSheet}
+        />
+      );
+    }
+
+    if (activeTab === "dashboards") {
+      return (
+        <DashboardsTab token={token} refreshVersion={dashboardRefreshVersion} />
+      );
+    }
+
+    return <TeamTab token={token} userRole={userRole} />;
+  };
 
   return (
     <View style={styles.container}>
@@ -317,24 +947,68 @@ export default function OrganisationScreen({
           { paddingTop: insets.top + theme.spacing.md },
         ]}
       >
-        <AppText variant="h4">{organisationName}</AppText>
-        <AppText variant="p" color={theme.colors.text.secondary}>
-          Admin Panel
-        </AppText>
+        <View style={styles.headerContent}>
+          <View style={styles.flex}>
+            <AppText variant="h4">{organisationName}</AppText>
+            <AppText variant="p" color={theme.colors.text.secondary}>
+              {activeScreenMeta.subtitle}
+            </AppText>
+          </View>
+
+          <Pressable
+            style={styles.settingsTrigger}
+            onPress={() => setSettingsVisible(true)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={theme.colors.text.primary}
+            />
+          </Pressable>
+        </View>
       </View>
-      <View style={styles.content}>
-        {activeTab === "overblik" && (
-          <OverblikTab token={token} organisationName={organisationName} />
-        )}
-        {activeTab === "afdelinger" && <AfdelingerTab token={token} />}
-        {activeTab === "transaktioner" && <TransaktionerTab token={token} />}
-        {activeTab === "dashboards" && <DashboardsTab token={token} />}
-        {activeTab === "team" && <TeamTab token={token} userRole={userRole} />}
-      </View>
+      <View style={styles.content}>{renderActiveScreen()}</View>
       <BottomTabBar
         tabs={TABS}
         activeTab={activeTab}
-        onTabPress={setActiveTab}
+        onTabPress={(key) => setActiveTab(key as ScreenKey)}
+      />
+      <SettingsMenu
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        onSelect={handleSelectSettingsDestination}
+      />
+      <CreateTransactionSheet
+        visible={showCreateTransactionSheet}
+        onClose={closeCreateTransactionSheet}
+        transactionType={transactionType}
+        onTransactionTypeChange={setTransactionType}
+        amount={formatRawAmountForDisplay(transactionAmountRaw)}
+        onAmountChange={handleTransactionAmountChange}
+        categoryId={selectedCategoryId}
+        onCategoryChange={setSelectedCategoryId}
+        categoryOptions={categoryOptions}
+        categoryLoading={isLoadingCategories}
+        date={transactionDate}
+        onDateChange={handleTransactionDateChange}
+        description={transactionDescription}
+        onDescriptionChange={(value) => {
+          setTransactionDescription(value);
+          if (createTransactionError) {
+            setCreateTransactionError(null);
+          }
+        }}
+        onSubmit={handleCreateTransaction}
+        isSubmitting={isSavingTransaction}
+        submitDisabled={
+          !selectedCategoryId ||
+          !transactionAmountRaw.trim() ||
+          !transactionDescription.trim() ||
+          isLoadingCategories ||
+          isSavingTransaction
+        }
+        errorMessage={createTransactionError}
       />
     </View>
   );
@@ -356,10 +1030,24 @@ function OverblikTab({
   const totalExpense = transactions
     .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + t.amount, 0);
-  const recent = transactions.slice(0, 5);
+  const recent = [...transactions]
+    .sort((a, b) => {
+      const createdAtA = new Date(a.created_at).getTime();
+      const createdAtB = new Date(b.created_at).getTime();
+
+      if (Number.isNaN(createdAtA) || Number.isNaN(createdAtB)) {
+        return 0;
+      }
+
+      return createdAtB - createdAtA;
+    })
+    .slice(0, 5);
 
   return (
-    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+    <ScrollView
+      style={styles.tab}
+      contentContainerStyle={styles.homeTabContent}
+    >
       <AppText variant="h3" style={styles.pageTitle}>
         {organisationName}
       </AppText>
@@ -1100,11 +1788,20 @@ function TransactionSection({
 }
 
 // ── TRANSAKTIONER TAB ─────────────────────────────────────────────────────────
-function TransaktionerTab({ token }: { token: string }) {
+function TransaktionerTab({
+  token,
+  refreshVersion,
+  onOpenCreateTransaction,
+}: {
+  token: string;
+  refreshVersion: number;
+  onOpenCreateTransaction: () => void;
+}) {
   const {
     transactions,
     isLoading,
     error,
+    fetchTransactions,
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, "");
@@ -1115,6 +1812,10 @@ function TransaktionerTab({ token }: { token: string }) {
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions, refreshVersion]);
 
   const closeEditModal = () => {
     setEditingTransaction(null);
@@ -1195,76 +1896,82 @@ function TransaktionerTab({ token }: { token: string }) {
         });
 
   return (
-    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-      <AppText variant="h3" style={styles.pageTitle}>
-        Transaktioner
-      </AppText>
-
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
-        placeholderTextColor={theme.input.placeholder}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      {error && <AlertMessage type="error" message={error} />}
-
-      {isLoading ? (
-        <ActivityIndicator color={theme.colors.primary.blue} />
-      ) : filteredTransactions.length === 0 ? (
-        <AppText
-          variant="p"
-          color={theme.colors.text.light}
-          style={styles.center}
-        >
-          {transactions.length === 0
-            ? "Ingen transaktioner endnu"
-            : "Ingen transaktioner matcher din søgning"}
+    <View style={styles.tab}>
+      <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+        <AppText variant="h3" style={styles.pageTitle}>
+          Transaktioner
         </AppText>
-      ) : (
-        filteredTransactions.map((t) => (
-          <View key={t.id} style={styles.transactionRow}>
-            <View style={styles.flex}>
-              <AppText variant="p">{t.description}</AppText>
-              <AppText variant="p" color={theme.colors.text.light}>
-                {t.date}
-              </AppText>
-              <AppText variant="p" color={theme.colors.text.light}>
-                {t.categories?.departments?.name} • {t.categories?.name}
-              </AppText>
-            </View>
 
-            <View style={styles.transactionActions}>
-              <AppText
-                variant="p"
-                color={
-                  t.amount > 0
-                    ? theme.colors.status.success
-                    : theme.colors.status.error
-                }
-              >
-                {t.amount > 0 ? "+" : ""}
-                {t.amount.toLocaleString()} kr
-              </AppText>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
+          placeholderTextColor={theme.input.placeholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
 
-              <View style={styles.inlineActions}>
-                <InlineActionButton
-                  icon="create-outline"
-                  onPress={() => openEditModal(t)}
-                />
-                <InlineActionButton
-                  icon="trash-outline"
-                  variant="danger"
-                  onPress={() => handleDelete(t)}
-                />
+        {error && <AlertMessage type="error" message={error} />}
+
+        {isLoading ? (
+          <ActivityIndicator color={theme.colors.primary.blue} />
+        ) : filteredTransactions.length === 0 ? (
+          <AppText
+            variant="p"
+            color={theme.colors.text.light}
+            style={styles.center}
+          >
+            {transactions.length === 0
+              ? "Ingen transaktioner endnu"
+              : "Ingen transaktioner matcher din søgning"}
+          </AppText>
+        ) : (
+          filteredTransactions.map((t) => (
+            <View key={t.id} style={styles.transactionRow}>
+              <View style={styles.flex}>
+                <AppText variant="p">{t.description}</AppText>
+                <AppText variant="p" color={theme.colors.text.light}>
+                  {t.date}
+                </AppText>
+                <AppText variant="p" color={theme.colors.text.light}>
+                  {t.categories?.departments?.name} • {t.categories?.name}
+                </AppText>
+              </View>
+
+              <View style={styles.transactionActions}>
+                <AppText
+                  variant="p"
+                  color={
+                    t.amount > 0
+                      ? theme.colors.status.success
+                      : theme.colors.status.error
+                  }
+                >
+                  {t.amount > 0 ? "+" : ""}
+                  {t.amount.toLocaleString()} kr
+                </AppText>
+
+                <View style={styles.inlineActions}>
+                  <InlineActionButton
+                    icon="create-outline"
+                    onPress={() => openEditModal(t)}
+                  />
+                  <InlineActionButton
+                    icon="trash-outline"
+                    variant="danger"
+                    onPress={() => handleDelete(t)}
+                  />
+                </View>
               </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </ScrollView>
+
+      <Pressable style={styles.fab} onPress={onOpenCreateTransaction}>
+        <Ionicons name="add" size={28} color={theme.colors.white} />
+      </Pressable>
 
       <TransactionEditModal
         visible={editingTransaction !== null}
@@ -1277,12 +1984,18 @@ function TransaktionerTab({ token }: { token: string }) {
         onClose={closeEditModal}
         onSave={handleSaveEdit}
       />
-    </ScrollView>
+    </View>
   );
 }
 
 // ── DASHBOARDS TAB ────────────────────────────────────────────────────────────
-function DashboardsTab({ token }: { token: string }) {
+function DashboardsTab({
+  token,
+  refreshVersion,
+}: {
+  token: string;
+  refreshVersion: number;
+}) {
   const [selectedPeriodPreset, setSelectedPeriodPreset] =
     useState<PeriodPreset>("currentMonth");
   const [appliedPeriod, setAppliedPeriod] = useState(() =>
@@ -1291,11 +2004,15 @@ function DashboardsTab({ token }: { token: string }) {
   const [fromInput, setFromInput] = useState(() => appliedPeriod.from);
   const [toInput, setToInput] = useState(() => appliedPeriod.to);
   const [periodError, setPeriodError] = useState<string | null>(null);
-  const { kpis, isLoading, error } = useKpiViewModel(
+  const { kpis, isLoading, error, fetchKpis } = useKpiViewModel(
     token,
     appliedPeriod.from,
     appliedPeriod.to,
   );
+
+  useEffect(() => {
+    fetchKpis();
+  }, [fetchKpis, refreshVersion]);
 
   const ALL_KPI_KEYS = [
     "revenue",
@@ -1759,6 +2476,100 @@ function TeamTab({ token, userRole }: { token: string; userRole: TeamRole }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background.app },
   content: { flex: 1 },
+  formField: {
+    marginBottom: theme.spacing.lg,
+  },
+  fieldLabel: {
+    marginBottom: theme.spacing.sm,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    padding: theme.spacing.xs,
+    borderRadius: theme.radius.full,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    backgroundColor: theme.colors.background.app,
+    gap: theme.spacing.xs,
+  },
+  segmentedOption: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.full,
+  },
+  segmentedOptionActive: {
+    backgroundColor: theme.colors.primary.blue,
+  },
+  segmentedOptionLabel: {
+    fontWeight: "600",
+  },
+  loadingField: {
+    minHeight: 56,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.input.border,
+    borderRadius: theme.radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.input.background,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(17,24,39,0.24)",
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheetKeyboardWrapper: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetContainer: {
+    flexShrink: 1,
+    backgroundColor: theme.colors.background.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xl,
+    borderTopWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    maxHeight: "86%",
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.background.cardBorder,
+    marginBottom: theme.spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: theme.spacing.lg,
+  },
+  sheetCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.background.app,
+  },
+  sheetScroll: {
+    maxHeight: 420,
+    marginBottom: theme.spacing.md,
+  },
+  sheetContent: {
+    flexGrow: 1,
+    paddingBottom: theme.spacing.lg,
+  },
+  sheetFooter: {
+    paddingTop: theme.spacing.sm,
+  },
   topHeader: {
     backgroundColor: theme.colors.background.card,
     paddingHorizontal: theme.spacing.md,
@@ -1767,9 +2578,101 @@ const styles = StyleSheet.create({
     borderBottomWidth: theme.borderWidth.thin,
     borderBottomColor: theme.colors.background.cardBorder,
   },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+  },
+  settingsTrigger: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.background.app,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+  },
+  settingsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(17,24,39,0.24)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: theme.spacing.hero + theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  settingsCard: {
+    width: "82%",
+    maxWidth: 320,
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.lg,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  settingsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: theme.spacing.xs,
+  },
+  settingsCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settingsItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.background.app,
+  },
+  settingsItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${theme.colors.primary.blue}14`,
+  },
+  settingsItemTitle: {
+    color: theme.colors.text.primary,
+    fontWeight: "600",
+  },
   tab: { flex: 1 },
-  tabContent: { padding: theme.spacing.xl },
+  tabContent: { padding: theme.spacing.xl, paddingBottom: 140 },
+  homeTabContent: {
+    padding: theme.spacing.xl,
+    paddingBottom: 140,
+  },
   pageTitle: { marginBottom: theme.spacing.md },
+  fab: {
+    position: "absolute",
+    right: theme.spacing.xl,
+    bottom: 120,
+    width: 60,
+    height: 60,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primary.blue,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 10,
+    zIndex: 20,
+  },
   searchInput: {
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.input.border,

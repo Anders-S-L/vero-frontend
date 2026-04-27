@@ -18,9 +18,15 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         }
     }, [token, categoryId])
 
-    const addTransaction = async (amount: number, date: string, description: string | null): Promise<Transaction> => {
+    const addTransaction = async (
+        amount: number,
+        date: string,
+        description: string | null,
+        overrideCategoryId?: string,
+    ): Promise<Transaction> => {
         try {
-            const data = await transactionModel.createTransaction(token, amount, date, categoryId, description)
+            const targetCategoryId = overrideCategoryId ?? categoryId
+            const data = await transactionModel.createTransaction(token, amount, date, targetCategoryId, description)
             setTransactions(prev => [...prev, data])
             return data
         } catch (e) {
@@ -52,5 +58,13 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
 
     useEffect(() => { fetchTransactions() }, [fetchTransactions])
 
-    return { transactions, isLoading, error, addTransaction, updateTransaction, deleteTransaction }
+    return {
+        transactions,
+        isLoading,
+        error,
+        addTransaction,
+        updateTransaction,
+        deleteTransaction,
+        fetchTransactions,
+    }
 }
