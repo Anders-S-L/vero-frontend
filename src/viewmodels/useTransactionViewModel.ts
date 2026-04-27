@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Transaction, transactionModel } from '../models/transactionModel'
+import {
+    CreateTransactionResponse,
+    Transaction,
+    transactionModel,
+} from '../models/transactionModel'
 
 export const useTransactionViewModel = (token: string, categoryId: string) => {
     const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -18,10 +22,30 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         }
     }, [token, categoryId])
 
-    const addTransaction = async (amount: number, date: string, description: string | null): Promise<Transaction> => {
+    const addTransaction = async (
+        amount: number,
+        date: string,
+        description: string | null,
+        repeatMonthly = false,
+        repeatUntil: string | null = null,
+    ): Promise<CreateTransactionResponse> => {
         try {
-            const data = await transactionModel.createTransaction(token, amount, date, categoryId, description)
-            setTransactions(prev => [...prev, data])
+            const data = await transactionModel.createTransaction(
+                token,
+                amount,
+                date,
+                categoryId,
+                description,
+                repeatMonthly,
+                repeatUntil,
+            )
+
+            if ('recurring' in data) {
+                setTransactions(prev => [...prev, ...data.transactions])
+            } else {
+                setTransactions(prev => [...prev, data])
+            }
+
             return data
         } catch (e) {
             setError((e as Error).message)

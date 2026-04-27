@@ -56,9 +56,9 @@ const TABS = [
 
 const getTransactionCategoryType = (transaction: Transaction): CategoryType =>
   transaction.categories?.type === "income" ||
-  transaction.categories?.type === "expense" ||
-  transaction.categories?.type === "tax" ||
-  transaction.categories?.type === "depreciation"
+    transaction.categories?.type === "expense" ||
+    transaction.categories?.type === "tax" ||
+    transaction.categories?.type === "depreciation"
     ? transaction.categories.type
     : transaction.amount >= 0
       ? "income"
@@ -628,6 +628,8 @@ function CategorySection({
   const [txDescription, setTxDescription] = useState("");
 
   const { addTransaction } = useTransactionViewModel(token, txCategoryId);
+  const [txRepeatMonthly, setTxRepeatMonthly] = useState(false);
+  const [txRepeatUntil, setTxRepeatUntil] = useState("");
 
   const categoryOptions = categories.map((c) => ({
     label: c.name,
@@ -701,20 +703,50 @@ function CategorySection({
     const parsedAmount = parseFloat(txAmount);
     if (Number.isNaN(parsedAmount)) return;
 
+    if (!isValidIsoDate(txDate)) {
+      Alert.alert("Fejl", "Dato skal være i formatet YYYY-MM-DD.");
+      return;
+    }
+
+    if (txRepeatMonthly) {
+      if (!txRepeatUntil || !isValidIsoDate(txRepeatUntil)) {
+        Alert.alert("Fejl", "Angiv en gyldig slutdato for gentagelsen.");
+        return;
+      }
+
+      if (txRepeatUntil < txDate) {
+        Alert.alert("Fejl", "Slutdato skal være samme dag eller efter startdato.");
+        return;
+      }
+    }
+
     const selectedCategory = categories.find(
       (category) => category.id === txCategoryId,
     );
     if (!selectedCategory) return;
 
     try {
-      await addTransaction(
+      const result = await addTransaction(
         getSignedAmount(parsedAmount, selectedCategory.type),
         txDate,
-        txDescription,
+        txDescription.trim(),
+        txRepeatMonthly,
+        txRepeatMonthly ? txRepeatUntil : null,
       );
+
       setTxAmount("");
       setTxDescription("");
+      setTxDate(new Date().toISOString().split("T")[0]);
+      setTxRepeatMonthly(false);
+      setTxRepeatUntil("");
       setShowTxModal(false);
+
+      if ("recurring" in result) {
+        Alert.alert(
+          "Succes",
+          `${result.created_count} transaktioner blev oprettet.`,
+        );
+      }
     } catch {
       // håndteres via error i viewmodel
     }
@@ -869,6 +901,24 @@ function CategorySection({
           value={txDescription}
           onChangeText={setTxDescription}
         />
+        <DropdownField
+          label="Gentagelse"
+          options={[
+            { label: "Nej", value: "false" },
+            { label: "Ja, månedligt", value: "true" },
+          ]}
+          value={txRepeatMonthly ? "true" : "false"}
+          onChange={(value) => setTxRepeatMonthly(value === "true")}
+        />
+
+        {txRepeatMonthly && (
+          <InputField
+            label="Gentag indtil"
+            placeholder="YYYY-MM-DD"
+            value={txRepeatUntil}
+            onChangeText={setTxRepeatUntil}
+          />
+        )}
         <PrimaryButton label="Tilføj transaktion" onPress={handleAddTx} />
       </BaseModal>
 
@@ -914,6 +964,8 @@ function TransactionSection({
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [repeatMonthly, setRepeatMonthly] = useState(false);
+  const [repeatUntil, setRepeatUntil] = useState("");
 
   const closeEditModal = () => {
     setEditingTransaction(null);
@@ -934,15 +986,45 @@ function TransactionSection({
     const parsedAmount = parseFloat(amount);
     if (Number.isNaN(parsedAmount)) return;
 
+    if (!isValidIsoDate(date)) {
+      Alert.alert("Fejl", "Dato skal være i formatet YYYY-MM-DD.");
+      return;
+    }
+
+    if (repeatMonthly) {
+      if (!repeatUntil || !isValidIsoDate(repeatUntil)) {
+        Alert.alert("Fejl", "Angiv en gyldig slutdato for gentagelsen.");
+        return;
+      }
+
+      if (repeatUntil < date) {
+        Alert.alert("Fejl", "Slutdato skal være samme dag eller efter startdato.");
+        return;
+      }
+    }
+
     try {
-      await addTransaction(
+      const result = await addTransaction(
         getSignedAmount(parsedAmount, categoryType),
         date,
-        description,
+        description.trim(),
+        repeatMonthly,
+        repeatMonthly ? repeatUntil : null,
       );
+
       setAmount("");
       setDescription("");
+      setDate(new Date().toISOString().split("T")[0]);
+      setRepeatMonthly(false);
+      setRepeatUntil("");
       setShowModal(false);
+
+      if ("recurring" in result) {
+        Alert.alert(
+          "Succes",
+          `${result.created_count} transaktioner blev oprettet.`,
+        );
+      }
     } catch {
       // håndteres via error i viewmodel
     }
@@ -1080,7 +1162,26 @@ function TransactionSection({
           placeholder="fx Løn marts"
           value={description}
           onChangeText={setDescription}
+
         />
+        <DropdownField
+          label="Gentagelse"
+          options={[
+            { label: "Nej", value: "false" },
+            { label: "Ja, månedligt", value: "true" },
+          ]}
+          value={repeatMonthly ? "true" : "false"}
+          onChange={(value) => setRepeatMonthly(value === "true")}
+        />
+
+        {repeatMonthly && (
+          <InputField
+            label="Gentag indtil"
+            placeholder="YYYY-MM-DD"
+            value={repeatUntil}
+            onChangeText={setRepeatUntil}
+          />
+        )}
         <PrimaryButton label="Tilføj transaktion" onPress={handleAdd} />
       </BaseModal>
 
@@ -1180,19 +1281,19 @@ function TransaktionerTab({ token }: { token: string }) {
     normalizedSearchQuery.length === 0
       ? transactions
       : transactions.filter((transaction) => {
-          const searchableText = [
-            transaction.description,
-            transaction.date,
-            transaction.categories?.name,
-            transaction.categories?.departments?.name,
-            transaction.amount.toString(),
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
+        const searchableText = [
+          transaction.description,
+          transaction.date,
+          transaction.categories?.name,
+          transaction.categories?.departments?.name,
+          transaction.amount.toString(),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-          return searchableText.includes(normalizedSearchQuery);
-        });
+        return searchableText.includes(normalizedSearchQuery);
+      });
 
   return (
     <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
@@ -1577,10 +1678,10 @@ function TeamTab({ token, userRole }: { token: string; userRole: TeamRole }) {
   const roleOptions =
     userRole === "admin"
       ? [
-          { label: "Manager", value: "manager" },
-          { label: "Employee", value: "employee" },
-          { label: "Auditor", value: "auditor" },
-        ]
+        { label: "Manager", value: "manager" },
+        { label: "Employee", value: "employee" },
+        { label: "Auditor", value: "auditor" },
+      ]
       : [{ label: "Employee", value: "employee" }];
 
   const departmentOptions = departments.map((dept) => ({
