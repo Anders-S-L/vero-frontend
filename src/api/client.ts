@@ -58,12 +58,13 @@ export const postJsonAuth = async <T>(path: string, body: unknown, token: string
 }
 
 export const putJsonAuth = async <T>(path: string, body: unknown, token: string): Promise<T> => {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const requestUrl = `${API_BASE_URL}${path}`
+    const response = await fetch(requestUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
     })
-    const payload = await response.json()
+    const payload = await parseResponsePayload(response, requestUrl)
     if (!response.ok || !payload.success) throw new Error(payload.error || 'Request fejlede')
     return payload.data as T
 }

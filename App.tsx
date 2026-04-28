@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import OrganisationScreen from './src/views/screens/OrganisationScreen'
+import OrganisationScreen from './src/views/screens/organisation/OrganisationScreen'
 import { AuthScreen } from './src/views/screens/SignupLoginScreen'
 
 export default function App() {
