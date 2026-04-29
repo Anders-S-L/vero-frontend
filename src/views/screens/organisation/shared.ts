@@ -40,11 +40,9 @@ export const KPI_COLORS: Record<string, string> = {
 }
 
 export const TABS = [
-  { key: "overblik", label: "Overblik", icon: "grid-outline" as const },
-  { key: "afdelinger", label: "Afdelinger", icon: "business-outline" as const },
+  { key: "overblik", label: "Home", icon: "home-outline" as const },
+  { key: "dashboards", label: "KPIs", icon: "stats-chart-outline" as const },
   { key: "transaktioner", label: "Transaktioner", icon: "card-outline" as const },
-  { key: "dashboards", label: "Dashboards", icon: "stats-chart-outline" as const },
-  { key: "team", label: "Team", icon: "people-outline" as const },
 ]
 
 export const getSignedAmount = (amount: number, categoryType: CategoryType) => {
@@ -66,6 +64,24 @@ export const formatDateForInput = (date: Date) => {
   const year = date.getFullYear()
   const month = `${date.getMonth() + 1}`.padStart(2, "0")
   const day = `${date.getDate()}`.padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+export const formatDanishDateInput = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`
+}
+
+export const formatDanishDateForInput = (isoDate: string) => {
+  if (!isValidIsoDate(isoDate)) return isoDate
+  const [year, month, day] = isoDate.split("-")
+  return `${day}-${month}-${year}`
+}
+
+export const toIsoDate = (value: string) => {
+  const [day, month, year] = value.split("-")
   return `${year}-${month}-${day}`
 }
 
@@ -103,4 +119,9 @@ export const isValidIsoDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00`)
   return !Number.isNaN(date.getTime()) && formatDateForInput(date) === value
+}
+
+export const isValidDanishDate = (value: string) => {
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return false
+  return isValidIsoDate(toIsoDate(value))
 }

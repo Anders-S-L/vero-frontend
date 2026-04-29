@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
     CreateTransactionResponse,
     Transaction,
+    TransactionRepeatFrequency,
     transactionModel,
 } from '../models/transactionModel'
 
@@ -28,16 +29,20 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         description: string | null,
         repeatMonthly = false,
         repeatUntil: string | null = null,
+        categoryIdOverride?: string,
+        repeatFrequency: TransactionRepeatFrequency = repeatMonthly ? 'monthly' : 'none',
     ): Promise<CreateTransactionResponse> => {
         try {
+            const targetCategoryId = categoryIdOverride ?? categoryId
             const data = await transactionModel.createTransaction(
                 token,
                 amount,
                 date,
-                categoryId,
+                targetCategoryId,
                 description,
                 repeatMonthly,
                 repeatUntil,
+                repeatFrequency,
             )
 
             if ('recurring' in data) {
@@ -76,5 +81,5 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
 
     useEffect(() => { fetchTransactions() }, [fetchTransactions])
 
-    return { transactions, isLoading, error, addTransaction, updateTransaction, deleteTransaction }
+    return { transactions, isLoading, error, fetchTransactions, addTransaction, updateTransaction, deleteTransaction }
 }

@@ -19,7 +19,14 @@ import {
 import { theme } from "../../../constants/theme"
 import { KpiMetric } from "../../../models/kpiModel"
 import { useKpiViewModel } from "../../../viewmodels/useKpiViewModel"
-import { PeriodPreset, getPeriodRange, isValidIsoDate } from "./shared"
+import {
+  PeriodPreset,
+  formatDanishDateForInput,
+  formatDanishDateInput,
+  getPeriodRange,
+  isValidDanishDate,
+  toIsoDate,
+} from "./shared"
 
 // ── KPI INFO MODAL ────────────────────────────────────────────────────────────
 
@@ -116,8 +123,8 @@ type Props = {
 export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
   const [selectedPeriodPreset, setSelectedPeriodPreset] = useState<PeriodPreset>("currentMonth")
   const [appliedPeriod, setAppliedPeriod] = useState(() => getPeriodRange("currentMonth"))
-  const [fromInput, setFromInput] = useState(() => appliedPeriod.from)
-  const [toInput, setToInput] = useState(() => appliedPeriod.to)
+  const [fromInput, setFromInput] = useState(() => formatDanishDateForInput(appliedPeriod.from))
+  const [toInput, setToInput] = useState(() => formatDanishDateForInput(appliedPeriod.to))
   const [periodError, setPeriodError] = useState<string | null>(null)
 
   const { kpis, isLoading, error } = useKpiViewModel(token, appliedPeriod.from, appliedPeriod.to)
@@ -148,22 +155,24 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
     }
     const nextPeriod = getPeriodRange(preset)
     setSelectedPeriodPreset(preset)
-    setFromInput(nextPeriod.from)
-    setToInput(nextPeriod.to)
+    setFromInput(formatDanishDateForInput(nextPeriod.from))
+    setToInput(formatDanishDateForInput(nextPeriod.to))
     setAppliedPeriod(nextPeriod)
     setPeriodError(null)
   }
 
   const applyCustomPeriod = () => {
-    if (!isValidIsoDate(fromInput) || !isValidIsoDate(toInput)) {
-      setPeriodError("Datoer skal være i formatet YYYY-MM-DD.")
+    if (!isValidDanishDate(fromInput) || !isValidDanishDate(toInput)) {
+      setPeriodError("Datoer skal være gyldige og i formatet DD-MM-YYYY.")
       return
     }
-    if (fromInput > toInput) {
+    const from = toIsoDate(fromInput)
+    const to = toIsoDate(toInput)
+    if (from > to) {
       setPeriodError("'Fra' dato må ikke være efter 'Til' dato.")
       return
     }
-    setAppliedPeriod({ from: fromInput, to: toInput })
+    setAppliedPeriod({ from, to })
     setSelectedPeriodPreset("custom")
     setPeriodError(null)
   }
@@ -185,9 +194,11 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
           <View style={styles.periodInput}>
             <InputField
               label="Fra"
-              placeholder="YYYY-MM-DD"
+              placeholder="DD-MM-YYYY"
               value={fromInput}
-              onChangeText={setFromInput}
+              onChangeText={(value) => setFromInput(formatDanishDateInput(value))}
+              keyboardType="number-pad"
+              maxLength={10}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -195,9 +206,11 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
           <View style={styles.periodInput}>
             <InputField
               label="Til"
-              placeholder="YYYY-MM-DD"
+              placeholder="DD-MM-YYYY"
               value={toInput}
-              onChangeText={setToInput}
+              onChangeText={(value) => setToInput(formatDanishDateInput(value))}
+              keyboardType="number-pad"
+              maxLength={10}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -206,7 +219,7 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
         {periodError && <AlertMessage type="error" message={periodError} />}
         <PrimaryButton label="Anvend periode" onPress={applyCustomPeriod} />
         <AppText variant="p" color={theme.colors.text.secondary} style={styles.periodSummary}>
-          Aktiv periode: {appliedPeriod.from} – {appliedPeriod.to}
+          Aktiv periode: {formatDanishDateForInput(appliedPeriod.from)} – {formatDanishDateForInput(appliedPeriod.to)}
         </AppText>
       </View>
 

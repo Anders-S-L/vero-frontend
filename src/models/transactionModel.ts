@@ -27,6 +27,8 @@ export type CreateTransactionResponse =
         transactions: Transaction[]
     }
 
+export type TransactionRepeatFrequency = 'none' | 'weekly' | 'monthly' | 'yearly'
+
 export const transactionModel = {
     getTransactions: (token: string) =>
         getJson<Transaction[]>('/transactions', token),
@@ -39,6 +41,7 @@ export const transactionModel = {
         description: string | null,
         repeat_monthly = false,
         repeat_until: string | null = null,
+        repeat_frequency: TransactionRepeatFrequency = 'none',
     ) =>
         postJsonAuth<CreateTransactionResponse>(
             '/transactions',
@@ -49,6 +52,7 @@ export const transactionModel = {
                 description,
                 repeat_monthly,
                 repeat_until,
+                repeat_frequency: repeat_frequency === 'none' ? null : repeat_frequency,
             },
             token,
         ),

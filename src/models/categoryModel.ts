@@ -13,7 +13,7 @@ export type Category = {
 
 export const categoryModel = {
     getCategories: (token: string, departmentId: string) =>
-        getJson<Category[]>(`/categories?department_id=${departmentId}`, token),
+        getJson<Category[]>(departmentId ? `/categories?department_id=${departmentId}` : '/categories', token),
 
     createCategory: (token: string, name: string, type: CategoryType, departmentId: string) =>
         postJsonAuth<Category>('/categories', { name, type, department_id: departmentId }, token),
