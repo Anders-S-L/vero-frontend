@@ -22,6 +22,7 @@ import { CategoryType } from "../../../models/categoryModel"
 import { Department } from "../../../models/departmentModel"
 import { useCategoryViewModel } from "../../../viewmodels/useCategoryViewModel"
 import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel"
+import { TeamRole } from "../../../viewmodels/useTeamViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
 import { getSignedAmount, isValidIsoDate } from "./shared"
 import { TransactionEditModal } from "./TransactionEditModal"
@@ -93,10 +94,12 @@ function TransactionSection({
   token,
   categoryId,
   categoryType,
+  userRole,
 }: {
   token: string
   categoryId: string
   categoryType: CategoryType
+  userRole: TeamRole
 }) {
   const {
     transactions,
@@ -106,6 +109,7 @@ function TransactionSection({
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, categoryId)
+  const canManageTransactions = userRole === "admin" || userRole === "manager"
 
   const [showModal, setShowModal] = useState(false)
   const [amount, setAmount] = useState("")
@@ -248,10 +252,12 @@ function TransactionSection({
                 {t.amount > 0 ? "+" : ""}
                 {t.amount.toLocaleString()} kr
               </AppText>
-              <View style={styles.inlineActions}>
-                <InlineActionButton icon="create-outline" onPress={() => openEditModal(t)} />
-                <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(t)} />
-              </View>
+              {canManageTransactions && (
+                <View style={styles.inlineActions}>
+                  <InlineActionButton icon="create-outline" onPress={() => openEditModal(t)} />
+                  <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(t)} />
+                </View>
+              )}
             </View>
           </View>
         ))
@@ -296,9 +302,11 @@ function TransactionSection({
 function CategorySection({
   token,
   departmentId,
+  userRole,
 }: {
   token: string
   departmentId: string
+  userRole: TeamRole
 }) {
   const {
     categories,
@@ -326,8 +334,13 @@ function CategorySection({
   const [txRepeatUntil, setTxRepeatUntil] = useState("")
 
   const { addTransaction } = useTransactionViewModel(token, txCategoryId)
+  const canManageCategories = userRole === "admin" || userRole === "manager"
 
-  const categoryOptions = categories.map((c) => ({ label: c.name, value: c.id }))
+  const visibleCategories =
+    userRole === "employee"
+      ? categories.filter((c) => c.type === "income" || c.type === "expense")
+      : categories
+  const categoryOptions = visibleCategories.map((c) => ({ label: c.name, value: c.id }))
   const typeOptions = [
     { label: "Indtægt", value: "income" },
     { label: "Udgift", value: "expense" },
@@ -437,21 +450,23 @@ function CategorySection({
         <AppText variant="p" color={theme.colors.text.secondary}>
           Kategorier
         </AppText>
-        <TouchableOpacity style={styles.smallBtn} onPress={() => setShowCatModal(true)}>
-          <AppText variant="p" color={theme.colors.white}>
-            + Kategori
-          </AppText>
-        </TouchableOpacity>
+        {canManageCategories && (
+          <TouchableOpacity style={styles.smallBtn} onPress={() => setShowCatModal(true)}>
+            <AppText variant="p" color={theme.colors.white}>
+              + Kategori
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
 
       {isLoading ? (
         <ActivityIndicator color={theme.colors.primary.blue} />
-      ) : categories.length === 0 ? (
+      ) : visibleCategories.length === 0 ? (
         <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
           Ingen kategorier endnu
         </AppText>
       ) : (
-        categories.map((cat) => (
+        visibleCategories.map((cat) => (
           <View key={cat.id}>
             <TouchableOpacity
               style={[styles.catRow, selectedCatId === cat.id && styles.catRowActive]}
@@ -482,14 +497,16 @@ function CategorySection({
                         : "Afskrivning"}
                 </AppText>
               </View>
-              <View style={styles.inlineActions}>
-                <InlineActionButton icon="create-outline" onPress={() => openEditModal(cat)} />
-                <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDeleteCat(cat)} />
-              </View>
+              {canManageCategories && (
+                <View style={styles.inlineActions}>
+                  <InlineActionButton icon="create-outline" onPress={() => openEditModal(cat)} />
+                  <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDeleteCat(cat)} />
+                </View>
+              )}
             </TouchableOpacity>
 
             {selectedCatId === cat.id && (
-              <TransactionSection token={token} categoryId={cat.id} categoryType={cat.type} />
+              <TransactionSection token={token} categoryId={cat.id} categoryType={cat.type} userRole={userRole} />
             )}
           </View>
         ))
@@ -543,7 +560,7 @@ function CategorySection({
 
 // ── DEPARTMENTS TAB ───────────────────────────────────────────────────────────
 
-export function DepartmentsTab({ token }: { token: string }) {
+export function DepartmentsTab({ token, userRole }: { token: string; userRole: TeamRole }) {
   const {
     departments,
     isLoading,
@@ -558,6 +575,7 @@ export function DepartmentsTab({ token }: { token: string }) {
   const [deptName, setDeptName] = useState("")
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
   const [editDeptName, setEditDeptName] = useState("")
+  const canManageDepartments = userRole === "admin"
 
   const handleAdd = async () => {
     if (!deptName.trim()) return
@@ -621,7 +639,9 @@ export function DepartmentsTab({ token }: { token: string }) {
               <AppText variant="p" color={theme.colors.text.secondary}>
                 Administrer afdelinger og kategorier
               </AppText>
-              <PrimaryButton label="+ Tilføj Afdeling" onPress={() => setShowModal(true)} />
+              {canManageDepartments && (
+                <PrimaryButton label="+ Tilføj Afdeling" onPress={() => setShowModal(true)} />
+              )}
             </View>
           }
           renderItem={({ item }) => (
@@ -633,10 +653,12 @@ export function DepartmentsTab({ token }: { token: string }) {
                 <AppText variant="h4" style={styles.flex}>
                   {item.name}
                 </AppText>
-                <View style={styles.inlineActions}>
-                  <InlineActionButton icon="create-outline" onPress={() => openEditModal(item)} />
-                  <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(item)} />
-                </View>
+                {canManageDepartments && (
+                  <View style={styles.inlineActions}>
+                    <InlineActionButton icon="create-outline" onPress={() => openEditModal(item)} />
+                    <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(item)} />
+                  </View>
+                )}
                 <Ionicons
                   name={selectedDeptId === item.id ? "chevron-up" : "chevron-down"}
                   size={20}
@@ -645,7 +667,7 @@ export function DepartmentsTab({ token }: { token: string }) {
               </TouchableOpacity>
 
               {selectedDeptId === item.id && (
-                <CategorySection token={token} departmentId={item.id} />
+                <CategorySection token={token} departmentId={item.id} userRole={userRole} />
               )}
             </View>
           )}

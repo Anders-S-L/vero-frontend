@@ -1,0 +1,18 @@
+
+> vero-frontend@1.0.0 start
+> expo start
+
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY
+Starting project at C:\KPIProjektFullStack\vero-frontend
+React Compiler enabled
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo\AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% (15/30)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓░░░░░░░░░░ 43.2% (293/446)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.8% (405/416)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.2% (763/766)
+λ Bundled 8117ms node_modules\expo-router\node\render.js (766 modules)
+Web Bundled 8622ms node_modules\expo\AppEntry.js (426 modules)

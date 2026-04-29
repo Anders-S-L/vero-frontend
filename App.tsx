@@ -6,7 +6,7 @@ import { AuthScreen } from './src/views/screens/SignupLoginScreen'
 export default function App() {
   const [token, setToken] = useState<string | null>(null)
   const [organisationName, setOrganisationName] = useState<string>('')
-  const [role, setRole] = useState<'admin' | 'manager' | 'employee' | 'auditor' | null>(null)
+  const [role, setRole] = useState<'admin' | 'manager' | 'employee' | null>(null)
 
   return (
     <SafeAreaProvider>

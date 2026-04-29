@@ -6,7 +6,7 @@ export const useAuthViewModel = () => {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [organisationName, setOrganisationName] = useState<string | null>(null)
-  const [role, setRole] = useState<'admin' | 'manager' | 'employee' | 'auditor' | null>(null)
+  const [role, setRole] = useState<'admin' | 'manager' | 'employee' | null>(null)
 
   const signupOwner = async (input: {
     email: string

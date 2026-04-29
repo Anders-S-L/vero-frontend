@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getJson, postJsonAuth } from '../api/client'
 
-export type TeamRole = 'admin' | 'manager' | 'employee' | 'auditor'
+export type TeamRole = 'admin' | 'manager' | 'employee'
 
 export type TeamMember = {
     id: string
