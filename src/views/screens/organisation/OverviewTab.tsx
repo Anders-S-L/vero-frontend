@@ -1,78 +1,88 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
-} from "react-native"
-import { AppText, ChartCard } from "../../../components"
-import { KpiLineChart } from "../../../components/charts/KpiLineChart"
-import { theme } from "../../../constants/theme"
-import { KpiHistoryPoint, kpiFavoriteModel } from "../../../models/kpiFavoriteModel"
-import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
-import { KPI_COLORS, KPI_LABELS } from "./shared"
+} from "react-native";
+import { AppText, ChartCard } from "../../../components";
+import { KpiLineChart } from "../../../components/charts/KpiLineChart";
+import { theme } from "../../../constants/theme";
+import {
+  KpiHistoryPoint,
+  kpiFavoriteModel,
+} from "../../../models/kpiFavoriteModel";
+import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
+import { KPI_COLORS, KPI_LABELS } from "./shared";
 
 type Props = {
-  token: string
-  organisationName: string
-  favorites: string[]
-}
+  token: string;
+  organisationName: string;
+  favorites: string[];
+};
 
 export function OverviewTab({ token, organisationName, favorites }: Props) {
-  const { transactions, isLoading } = useTransactionViewModel(token, "")
-  const { width: screenWidth } = useWindowDimensions()
-  const chartWidth = screenWidth - theme.spacing.xl * 2 - theme.spacing.lg * 2
+  const { transactions, isLoading } = useTransactionViewModel(token, "");
+  const { width: screenWidth } = useWindowDimensions();
+  const chartWidth = screenWidth - theme.spacing.xl * 2 - theme.spacing.lg * 2;
 
   const historyFrom = useMemo(() => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - 5)
-    d.setDate(1)
-    return d.toISOString().slice(0, 10)
-  }, [])
+    const d = new Date();
+    d.setMonth(d.getMonth() - 5);
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
-  const historyTo = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const historyTo = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  const [kpiHistories, setKpiHistories] = useState<Record<string, KpiHistoryPoint[]>>({})
-  const [historiesLoading, setHistoriesLoading] = useState(false)
+  const [kpiHistories, setKpiHistories] = useState<
+    Record<string, KpiHistoryPoint[]>
+  >({});
+  const [historiesLoading, setHistoriesLoading] = useState(false);
 
   useEffect(() => {
     if (favorites.length === 0 || !token) {
-      setKpiHistories({})
-      return
+      setKpiHistories({});
+      return;
     }
 
-    let cancelled = false
-    setHistoriesLoading(true)
+    let cancelled = false;
+    setHistoriesLoading(true);
 
     Promise.all(
       favorites.map(async (key) => {
         try {
-          const data = await kpiFavoriteModel.getHistory(token, key, historyFrom, historyTo)
-          return [key, data] as const
+          const data = await kpiFavoriteModel.getHistory(
+            token,
+            key,
+            historyFrom,
+            historyTo,
+          );
+          return [key, data] as const;
         } catch {
-          return [key, [] as KpiHistoryPoint[]] as const
+          return [key, [] as KpiHistoryPoint[]] as const;
         }
       }),
     ).then((results) => {
       if (!cancelled) {
-        setKpiHistories(Object.fromEntries(results))
-        setHistoriesLoading(false)
+        setKpiHistories(Object.fromEntries(results));
+        setHistoriesLoading(false);
       }
-    })
+    });
 
     return () => {
-      cancelled = true
-    }
-  }, [favorites, token, historyFrom, historyTo])
+      cancelled = true;
+    };
+  }, [favorites, token, historyFrom, historyTo]);
 
   const totalIncome = transactions
     .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0)
+    .reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions
     .filter((t) => t.amount < 0)
-    .reduce((sum, t) => sum + t.amount, 0)
-  const recent = transactions.slice(0, 5)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const recent = transactions.slice(0, 5);
 
   return (
     <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
@@ -107,7 +117,11 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
       {isLoading ? (
         <ActivityIndicator color={theme.colors.primary.blue} />
       ) : recent.length === 0 ? (
-        <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
+        <AppText
+          variant="p"
+          color={theme.colors.text.light}
+          style={styles.center}
+        >
           Ingen transaktioner endnu
         </AppText>
       ) : (
@@ -121,7 +135,11 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
             </View>
             <AppText
               variant="p"
-              color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}
+              color={
+                t.amount > 0
+                  ? theme.colors.status.success
+                  : theme.colors.status.error
+              }
             >
               {t.amount > 0 ? "+" : ""}
               {t.amount.toLocaleString()} kr
@@ -136,7 +154,11 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
 
       {favorites.length === 0 ? (
         <View style={styles.graphHint}>
-          <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
+          <AppText
+            variant="p"
+            color={theme.colors.text.light}
+            style={styles.center}
+          >
             Tilføj favoritter fra Dashboard-fanen for at se grafer her
           </AppText>
         </View>
@@ -154,7 +176,7 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
         ))
       )}
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -172,7 +194,11 @@ const styles = StyleSheet.create({
   },
   metricSpacer: { width: theme.spacing.md },
   flex: { flex: 1 },
-  center: { textAlign: "center", alignItems: "center", justifyContent: "center" },
+  center: {
+    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   transactionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -188,4 +214,4 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xl,
     alignItems: "center",
   },
-})
+});
