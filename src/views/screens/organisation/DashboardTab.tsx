@@ -1,5 +1,5 @@
-import { Ionicons } from "@expo/vector-icons"
-import React, { useState } from "react"
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-} from "react-native"
+} from "react-native";
 import {
   AlertMessage,
   AppText,
@@ -15,10 +15,10 @@ import {
   DropdownField,
   InputField,
   PrimaryButton,
-} from "../../../components"
-import { theme } from "../../../constants/theme"
-import { KpiMetric } from "../../../models/kpiModel"
-import { useKpiViewModel } from "../../../viewmodels/useKpiViewModel"
+} from "../../../components";
+import { theme } from "../../../constants/theme";
+import { KpiMetric } from "../../../models/kpiModel";
+import { useKpiViewModel } from "../../../viewmodels/useKpiViewModel";
 import {
   PeriodPreset,
   formatDanishDateForInput,
@@ -26,7 +26,7 @@ import {
   getPeriodRange,
   isValidDanishDate,
   toIsoDate,
-} from "./shared"
+} from "./shared";
 
 // ── KPI INFO MODAL ────────────────────────────────────────────────────────────
 
@@ -35,17 +35,22 @@ function KpiInfoModal({
   visible,
   onClose,
 }: {
-  metric: KpiMetric | null
-  visible: boolean
-  onClose: () => void
+  metric: KpiMetric | null;
+  visible: boolean;
+  onClose: () => void;
 }) {
   const definition =
-    metric?.definition?.trim() || "Definition er ikke tilgængelig for denne KPI endnu."
+    metric?.definition?.trim() ||
+    "Definition er ikke tilgængelig for denne KPI endnu.";
   const calculationExamples =
-    metric?.calculationExample?.filter((example) => example?.trim()) ?? []
+    metric?.calculationExample?.filter((example) => example?.trim()) ?? [];
 
   return (
-    <BaseModal visible={visible} title={metric?.label ?? "KPI-info"} onClose={onClose}>
+    <BaseModal
+      visible={visible}
+      title={metric?.label ?? "KPI-info"}
+      onClose={onClose}
+    >
       <ScrollView
         style={styles.kpiInfoScroll}
         contentContainerStyle={styles.kpiInfoContent}
@@ -66,11 +71,18 @@ function KpiInfoModal({
           </AppText>
           {calculationExamples.length > 0 ? (
             calculationExamples.map((example, index) => (
-              <View key={`${metric?.label ?? "kpi"}-${index}`} style={styles.kpiInfoBulletRow}>
+              <View
+                key={`${metric?.label ?? "kpi"}-${index}`}
+                style={styles.kpiInfoBulletRow}
+              >
                 <AppText variant="p" style={styles.kpiInfoBullet}>
                   •
                 </AppText>
-                <AppText variant="p" color={theme.colors.text.secondary} style={styles.flex}>
+                <AppText
+                  variant="p"
+                  color={theme.colors.text.secondary}
+                  style={styles.flex}
+                >
                   {example}
                 </AppText>
               </View>
@@ -83,7 +95,7 @@ function KpiInfoModal({
         </View>
       </ScrollView>
     </BaseModal>
-  )
+  );
 }
 
 // ── DASHBOARD TAB ─────────────────────────────────────────────────────────────
@@ -101,37 +113,58 @@ const ALL_KPI_KEYS = [
   "contributionMargin",
   "liquidityRatio",
   "debtorDays",
-] as const
+] as const;
 
-type KpiKey = (typeof ALL_KPI_KEYS)[number]
+type KpiKey = (typeof ALL_KPI_KEYS)[number];
 
 const formatValue = (value: number | null, unit: string) => {
-  if (value === null) return "–"
-  if (unit === "currency") return `${Math.round(value).toLocaleString("da-DK")} kr`
-  if (unit === "percentage") return `${value.toFixed(1)}%`
-  if (unit === "days") return `${value.toFixed(0)} dage`
-  if (unit === "ratio") return value.toFixed(2)
-  return `${value}`
-}
+  if (value === null) return "–";
+  if (unit === "currency")
+    return `${Math.round(value).toLocaleString("da-DK")} kr`;
+  if (unit === "percentage") return `${value.toFixed(1)}%`;
+  if (unit === "days") return `${value.toFixed(0)} dage`;
+  if (unit === "ratio") return value.toFixed(2);
+  return `${value}`;
+};
+
+const PERIOD_PRESETS: PeriodPreset[] = [
+  "currentMonth",
+  "last30Days",
+  "currentQuarter",
+  "currentYear",
+];
 
 type Props = {
-  token: string
-  favorites: string[]
-  toggleFavorite: (key: string) => void
-}
+  token: string;
+  favorites: string[];
+  toggleFavorite: (key: string) => void;
+};
 
 export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
-  const [selectedPeriodPreset, setSelectedPeriodPreset] = useState<PeriodPreset>("currentMonth")
-  const [appliedPeriod, setAppliedPeriod] = useState(() => getPeriodRange("currentMonth"))
-  const [fromInput, setFromInput] = useState(() => formatDanishDateForInput(appliedPeriod.from))
-  const [toInput, setToInput] = useState(() => formatDanishDateForInput(appliedPeriod.to))
-  const [periodError, setPeriodError] = useState<string | null>(null)
+  const [selectedPeriodPreset, setSelectedPeriodPreset] =
+    useState<PeriodPreset>("currentMonth");
+  const [appliedPeriod, setAppliedPeriod] = useState(() =>
+    getPeriodRange("currentMonth"),
+  );
+  const [fromInput, setFromInput] = useState(() =>
+    formatDanishDateForInput(appliedPeriod.from),
+  );
+  const [toInput, setToInput] = useState(() =>
+    formatDanishDateForInput(appliedPeriod.to),
+  );
+  const [periodError, setPeriodError] = useState<string | null>(null);
 
-  const { kpis, isLoading, error } = useKpiViewModel(token, appliedPeriod.from, appliedPeriod.to)
+  const { kpis, isLoading, error } = useKpiViewModel(
+    token,
+    appliedPeriod.from,
+    appliedPeriod.to,
+  );
 
-  const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([...ALL_KPI_KEYS])
-  const [showSelector, setShowSelector] = useState(false)
-  const [selectedKpiInfo, setSelectedKpiInfo] = useState<KpiMetric | null>(null)
+  const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([...ALL_KPI_KEYS]);
+  const [showSelector, setShowSelector] = useState(false);
+  const [selectedKpiInfo, setSelectedKpiInfo] = useState<KpiMetric | null>(
+    null,
+  );
 
   const periodOptions = [
     { label: "Denne måned", value: "currentMonth" },
@@ -139,48 +172,55 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
     { label: "Dette kvartal", value: "currentQuarter" },
     { label: "I år", value: "currentYear" },
     { label: "Brugerdefineret", value: "custom" },
-  ]
+  ];
 
   const toggleKpi = (key: KpiKey) => {
     setSelectedKpis((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    )
-  }
+    );
+  };
 
   const applyPresetPeriod = (value: string) => {
-    const preset = value as PeriodPreset
+    const preset = value as PeriodPreset;
     if (preset === "custom") {
-      setSelectedPeriodPreset("custom")
-      return
+      setSelectedPeriodPreset("custom");
+      return;
     }
-    const nextPeriod = getPeriodRange(preset)
-    setSelectedPeriodPreset(preset)
-    setFromInput(formatDanishDateForInput(nextPeriod.from))
-    setToInput(formatDanishDateForInput(nextPeriod.to))
-    setAppliedPeriod(nextPeriod)
-    setPeriodError(null)
-  }
+    const nextPeriod = getPeriodRange(preset);
+    setSelectedPeriodPreset(preset);
+    setFromInput(formatDanishDateForInput(nextPeriod.from));
+    setToInput(formatDanishDateForInput(nextPeriod.to));
+    setAppliedPeriod(nextPeriod);
+    setPeriodError(null);
+  };
 
   const applyCustomPeriod = () => {
     if (!isValidDanishDate(fromInput) || !isValidDanishDate(toInput)) {
-      setPeriodError("Datoer skal være gyldige og i formatet DD-MM-YYYY.")
-      return
+      setPeriodError(
+        "Datoer skal være gyldige og i formatet DD-MM-YYYY eller DD-MM-YY.",
+      );
+      return;
     }
-    const from = toIsoDate(fromInput)
-    const to = toIsoDate(toInput)
+    const from = toIsoDate(fromInput);
+    const to = toIsoDate(toInput);
     if (from > to) {
-      setPeriodError("'Fra' dato må ikke være efter 'Til' dato.")
-      return
+      setPeriodError("'Fra' dato må ikke være efter 'Til' dato.");
+      return;
     }
-    setAppliedPeriod({ from, to })
-    setSelectedPeriodPreset("custom")
-    setPeriodError(null)
-  }
+    const matchingPreset = PERIOD_PRESETS.find((preset) => {
+      const range = getPeriodRange(preset);
+      return range.from === from && range.to === to;
+    });
+
+    setAppliedPeriod({ from, to });
+    setSelectedPeriodPreset(matchingPreset ?? "custom");
+    setPeriodError(null);
+  };
 
   return (
     <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
       <AppText variant="h3" style={styles.pageTitle}>
-        Dashboard
+        {"KPI'er"}
       </AppText>
 
       <View style={styles.periodCard}>
@@ -194,9 +234,11 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
           <View style={styles.periodInput}>
             <InputField
               label="Fra"
-              placeholder="DD-MM-YYYY"
+              placeholder="DD-MM-YYYY / DD-MM-YY"
               value={fromInput}
-              onChangeText={(value) => setFromInput(formatDanishDateInput(value))}
+              onChangeText={(value) =>
+                setFromInput(formatDanishDateInput(value))
+              }
               keyboardType="number-pad"
               maxLength={10}
               autoCapitalize="none"
@@ -206,7 +248,7 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
           <View style={styles.periodInput}>
             <InputField
               label="Til"
-              placeholder="DD-MM-YYYY"
+              placeholder="DD-MM-YYYY / DD-MM-YY"
               value={toInput}
               onChangeText={(value) => setToInput(formatDanishDateInput(value))}
               keyboardType="number-pad"
@@ -218,8 +260,13 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
         </View>
         {periodError && <AlertMessage type="error" message={periodError} />}
         <PrimaryButton label="Anvend periode" onPress={applyCustomPeriod} />
-        <AppText variant="p" color={theme.colors.text.secondary} style={styles.periodSummary}>
-          Aktiv periode: {formatDanishDateForInput(appliedPeriod.from)} – {formatDanishDateForInput(appliedPeriod.to)}
+        <AppText
+          variant="p"
+          color={theme.colors.text.secondary}
+          style={styles.periodSummary}
+        >
+          Aktiv periode: {formatDanishDateForInput(appliedPeriod.from)} –{" "}
+          {formatDanishDateForInput(appliedPeriod.to)}
         </AppText>
       </View>
 
@@ -230,13 +277,17 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
       ) : (
         <View style={styles.kpiGrid}>
           {selectedKpis.map((key) => {
-            const metric = kpis?.metrics[key as keyof typeof kpis.metrics]
-            if (!metric) return null
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            if (!metric) return null;
 
             return (
               <View key={key} style={styles.kpiCard}>
                 <View style={styles.kpiCardHeader}>
-                  <AppText variant="p" color={theme.colors.text.secondary} style={styles.kpiCardTitle}>
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.secondary}
+                    style={styles.kpiCardTitle}
+                  >
                     {metric.label}
                   </AppText>
                   <Pressable
@@ -272,17 +323,27 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
                 </View>
                 <AppText
                   variant="h4"
-                  color={metric.available ? theme.colors.text.primary : theme.colors.text.light}
+                  color={
+                    metric.available
+                      ? theme.colors.text.primary
+                      : theme.colors.text.light
+                  }
                 >
-                  {metric.available ? formatValue(metric.value, metric.unit) : "–"}
+                  {metric.available
+                    ? formatValue(metric.value, metric.unit)
+                    : "–"}
                 </AppText>
                 {!metric.available && (
-                  <AppText variant="p" color={theme.colors.text.light} style={styles.unavailableReason}>
+                  <AppText
+                    variant="p"
+                    color={theme.colors.text.light}
+                    style={styles.unavailableReason}
+                  >
                     {metric.reason}
                   </AppText>
                 )}
               </View>
-            )
+            );
           })}
         </View>
       )}
@@ -305,8 +366,8 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
       {showSelector && (
         <View style={styles.kpiSelector}>
           {ALL_KPI_KEYS.map((key) => {
-            const metric = kpis?.metrics[key as keyof typeof kpis.metrics]
-            const isSelected = selectedKpis.includes(key)
+            const metric = kpis?.metrics[key as keyof typeof kpis.metrics];
+            const isSelected = selectedKpis.includes(key);
 
             return (
               <TouchableOpacity
@@ -320,17 +381,19 @@ export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
               >
                 <AppText
                   variant="p"
-                  color={isSelected ? theme.colors.white : theme.colors.text.primary}
+                  color={
+                    isSelected ? theme.colors.white : theme.colors.text.primary
+                  }
                 >
                   {metric?.label ?? key}
                 </AppText>
               </TouchableOpacity>
-            )
+            );
           })}
         </View>
       )}
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -377,7 +440,11 @@ const styles = StyleSheet.create({
   kpiInfoContent: { gap: theme.spacing.lg, paddingBottom: theme.spacing.xs },
   kpiInfoSection: { gap: theme.spacing.sm },
   kpiInfoSectionTitle: { fontWeight: "700", color: theme.colors.text.primary },
-  kpiInfoBulletRow: { flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.sm },
+  kpiInfoBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing.sm,
+  },
   kpiInfoBullet: { color: theme.colors.text.primary, lineHeight: 20 },
   selectorToggle: {
     borderWidth: theme.borderWidth.thin,
@@ -407,4 +474,4 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary.blue,
   },
   chipUnavailable: { opacity: 0.4 },
-})
+});

@@ -156,7 +156,7 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
       return
     }
     if (!isValidDanishDate(date)) {
-      setFormError("Dato skal være en gyldig dato i formatet DD-MM-YYYY.")
+      setFormError("Dato skal være en gyldig dato i formatet DD-MM-YYYY eller DD-MM-YY.")
       return
     }
     if (!description.trim()) {
@@ -165,7 +165,7 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
     }
     if (hasRepeat) {
       if (!isValidDanishDate(repeatUntil)) {
-        setFormError("Gentag indtil skal være en gyldig dato i formatet DD-MM-YYYY.")
+        setFormError("Gentag indtil skal være en gyldig dato i formatet DD-MM-YYYY eller DD-MM-YY.")
         return
       }
       if (toIsoDate(repeatUntil) < toIsoDate(date)) {
@@ -238,7 +238,7 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
               />
               <InputField
                 label="Dato"
-                placeholder="DD-MM-YYYY"
+                placeholder="DD-MM-YYYY / DD-MM-YY"
                 value={date}
                 onChangeText={(value) => setDate(formatDanishDateInput(value))}
                 keyboardType="number-pad"
@@ -260,7 +260,7 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
               {hasRepeat && (
                 <InputField
                   label="Gentag indtil"
-                  placeholder="DD-MM-YYYY"
+                  placeholder="DD-MM-YYYY / DD-MM-YY"
                   value={repeatUntil}
                   onChangeText={(value) => setRepeatUntil(formatDanishDateInput(value))}
                   keyboardType="number-pad"

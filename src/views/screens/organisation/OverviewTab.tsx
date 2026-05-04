@@ -165,15 +165,17 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
       ) : historiesLoading ? (
         <ActivityIndicator color={theme.colors.primary.blue} />
       ) : (
-        favorites.map((key) => (
-          <ChartCard key={key} title={KPI_LABELS[key] ?? key} minHeight={150}>
-            <KpiLineChart
-              data={kpiHistories[key] ?? []}
-              color={KPI_COLORS[key] ?? theme.colors.primary.blue}
-              width={chartWidth}
-            />
-          </ChartCard>
-        ))
+        <View style={styles.favoriteGraphList}>
+          {favorites.map((key) => (
+            <ChartCard key={key} title={KPI_LABELS[key] ?? key} minHeight={150}>
+              <KpiLineChart
+                data={kpiHistories[key] ?? []}
+                color={KPI_COLORS[key] ?? theme.colors.primary.blue}
+                width={chartWidth}
+              />
+            </ChartCard>
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -213,5 +215,8 @@ const styles = StyleSheet.create({
   graphHint: {
     paddingVertical: theme.spacing.xl,
     alignItems: "center",
+  },
+  favoriteGraphList: {
+    gap: theme.spacing.xs,
   },
 });

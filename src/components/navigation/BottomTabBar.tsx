@@ -54,32 +54,21 @@ export const BottomTabBar = ({ tabs, activeTab, onTabPress }: Props) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: theme.spacing.lg,
-    zIndex: 20,
+    backgroundColor: theme.navigation.background,
+    borderTopWidth: theme.borderWidth.thin,
+    borderTopColor: theme.navigation.border,
   },
   container: {
     flexDirection: "row",
-    backgroundColor: theme.navigation.background,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.sm,
-    borderWidth: theme.borderWidth.thin,
-    borderColor: theme.navigation.border,
-    shadowColor: theme.colors.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    elevation: 8,
+    paddingHorizontal: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.sm,
   },
   activeTab: {
     backgroundColor: theme.colors.background.app,

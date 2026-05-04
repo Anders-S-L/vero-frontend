@@ -82,7 +82,8 @@ export const formatDanishDateForInput = (isoDate: string) => {
 
 export const toIsoDate = (value: string) => {
   const [day, month, year] = value.split("-")
-  return `${year}-${month}-${day}`
+  const normalizedYear = year.length === 2 ? `20${year}` : year
+  return `${normalizedYear}-${month}-${day}`
 }
 
 const getQuarterStart = (date: Date) =>
@@ -122,6 +123,6 @@ export const isValidIsoDate = (value: string) => {
 }
 
 export const isValidDanishDate = (value: string) => {
-  if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return false
+  if (!/^\d{2}-\d{2}-(\d{2}|\d{4})$/.test(value)) return false
   return isValidIsoDate(toIsoDate(value))
 }

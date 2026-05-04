@@ -34,8 +34,8 @@ export function TransactionsTab({
     error,
     updateTransaction,
     deleteTransaction,
-  } = useTransactionViewModel(token, "")
-  const canManageTransactions = userRole === "admin" || userRole === "manager"
+  } = useTransactionViewModel(token, "");
+  const canManageTransactions = userRole === "admin" || userRole === "manager";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -107,18 +107,18 @@ export function TransactionsTab({
     normalizedQuery.length === 0
       ? transactions
       : transactions.filter((t) =>
-        [
-          t.description,
-          t.date,
-          t.categories?.name,
-          t.categories?.departments?.name,
-          t.amount.toString(),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery),
-      );
+          [
+            t.description,
+            t.date,
+            t.categories?.name,
+            t.categories?.departments?.name,
+            t.amount.toString(),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedQuery),
+        );
 
   return (
     <View style={styles.screen}>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: theme.spacing.xl,
-    bottom: 125,
+    bottom: theme.spacing.xl,
     width: 58,
     height: 58,
     borderRadius: theme.radius.full,
