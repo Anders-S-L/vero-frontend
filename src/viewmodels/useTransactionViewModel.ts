@@ -46,7 +46,12 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
             )
 
             if ('recurring' in data) {
-                setTransactions(prev => [...prev, ...data.transactions])
+                const initialTransaction = data.transactions.find(transaction => transaction.date === date)
+                    ?? data.transactions[0]
+
+                if (initialTransaction) {
+                    setTransactions(prev => [...prev, initialTransaction])
+                }
             } else {
                 setTransactions(prev => [...prev, data])
             }
