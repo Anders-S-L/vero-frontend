@@ -19,10 +19,15 @@ import { TransactionEditModal } from "./TransactionEditModal";
 
 type Props = {
   token: string;
+  userRole: TeamRole;
   onTransactionSaved?: () => void;
 };
 
-export function TransactionsTab({ token, userRole, }: { token: string; userRole: TeamRole }) {
+export function TransactionsTab({
+  token,
+  userRole,
+  onTransactionSaved,
+}: Props) {
   const {
     transactions,
     isLoading,
