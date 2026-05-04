@@ -19,7 +19,12 @@ type Props = {
 }
 
 export default function OrganisationScreen({ token, organisationName, userRole }: Props) {
-  const [activeTab, setActiveTab] = useState("overblik")
+  const allowedTabs = TABS.filter((tab) => {
+    if (userRole === "admin") return true
+    if (userRole === "manager") return ["afdelinger", "transaktioner", "team"].includes(tab.key)
+    return tab.key === "afdelinger"
+  })
+  const [activeTab, setActiveTab] = useState(allowedTabs[0]?.key ?? "afdelinger")
   const insets = useSafeAreaInsets()
   const { favorites, toggleFavorite } = useKpiFavoriteViewModel(token)
 
@@ -28,7 +33,7 @@ export default function OrganisationScreen({ token, organisationName, userRole }
       <View style={[styles.topHeader, { paddingTop: insets.top + theme.spacing.md }]}>
         <AppText variant="h4">{organisationName}</AppText>
         <AppText variant="p" color={theme.colors.text.secondary}>
-          Admin Panel
+          {userRole === "admin" ? "CEO Panel" : userRole === "manager" ? "Manager Panel" : "Medarbejder"}
         </AppText>
       </View>
 
@@ -36,15 +41,15 @@ export default function OrganisationScreen({ token, organisationName, userRole }
         {activeTab === "overblik" && (
           <OverviewTab token={token} organisationName={organisationName} favorites={favorites} />
         )}
-        {activeTab === "afdelinger" && <DepartmentsTab token={token} />}
-        {activeTab === "transaktioner" && <TransactionsTab token={token} />}
+        {activeTab === "afdelinger" && <DepartmentsTab token={token} userRole={userRole} />}
+        {activeTab === "transaktioner" && <TransactionsTab token={token} userRole={userRole} />}
         {activeTab === "dashboards" && (
           <DashboardTab token={token} favorites={favorites} toggleFavorite={toggleFavorite} />
         )}
         {activeTab === "team" && <TeamTab token={token} userRole={userRole} />}
       </View>
 
-      <BottomTabBar tabs={TABS} activeTab={activeTab} onTabPress={setActiveTab} />
+      <BottomTabBar tabs={allowedTabs} activeTab={activeTab} onTabPress={setActiveTab} />
     </View>
   )
 }

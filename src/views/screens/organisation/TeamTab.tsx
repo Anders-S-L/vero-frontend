@@ -20,7 +20,6 @@ import { TeamRole, useTeamViewModel } from "../../../viewmodels/useTeamViewModel
 const roleLabel = (role: TeamRole) => {
   if (role === "admin") return "Admin"
   if (role === "manager") return "Manager"
-  if (role === "auditor") return "Auditor"
   return "Medarbejder"
 }
 
@@ -37,7 +36,7 @@ export function TeamTab({ token, userRole }: Props) {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteName, setInviteName] = useState("")
-  const [inviteRole, setInviteRole] = useState<"manager" | "employee" | "auditor">("employee")
+  const [inviteRole, setInviteRole] = useState<"manager" | "employee">("employee")
   const [inviteDepartmentId, setInviteDepartmentId] = useState("")
 
   const canInvite = userRole === "admin" || userRole === "manager"
@@ -53,7 +52,6 @@ export function TeamTab({ token, userRole }: Props) {
       ? [
           { label: "Manager", value: "manager" },
           { label: "Employee", value: "employee" },
-          { label: "Auditor", value: "auditor" },
         ]
       : [{ label: "Employee", value: "employee" }]
 
@@ -74,7 +72,7 @@ export function TeamTab({ token, userRole }: Props) {
 
     setInviteEmail("")
     setInviteName("")
-    setInviteRole(userRole === "admin" ? "manager" : "employee")
+    setInviteRole("employee")
     setInviteDepartmentId("")
     setShowInviteModal(false)
   }
@@ -91,7 +89,7 @@ export function TeamTab({ token, userRole }: Props) {
       />
       {!canInvite && (
         <AppText variant="p" color={theme.colors.text.light} style={styles.hint}>
-          Kun admin eller manager kan invitere medarbejdere.
+          Kun CEO/admin eller manager kan invitere brugere.
         </AppText>
       )}
 
@@ -191,7 +189,7 @@ export function TeamTab({ token, userRole }: Props) {
           label="Rolle"
           options={roleOptions}
           value={inviteRole}
-          onChange={(value) => setInviteRole(value as "manager" | "employee" | "auditor")}
+          onChange={(value) => setInviteRole(value as "manager" | "employee")}
         />
         <DropdownField
           label="Afdeling"

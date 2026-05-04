@@ -3,7 +3,7 @@ import { Button, SafeAreaView, Text, TextInput, View } from 'react-native'
 import { getInviteUserEmail, updateInvitePassword } from '../../lib/supabaseAuth'
 import { useAuthViewModel } from '../../viewmodels/useSignupLoginViewModel'
 
-export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationName: string, role: 'admin' | 'manager' | 'employee' | 'auditor') => void }) => {
+export const AuthScreen = ({ onLogin }: { onLogin: (token: string, organisationName: string, role: 'admin' | 'manager' | 'employee') => void }) => {
     const { loading, error, message, signupOwner, login, token, organisationName: orgName, role } = useAuthViewModel()
     const [mode, setMode] = useState<'login' | 'signup'>('login')
     const [email, setEmail] = useState('')

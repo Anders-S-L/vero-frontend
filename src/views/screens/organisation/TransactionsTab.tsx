@@ -9,11 +9,12 @@ import {
 } from "react-native"
 import { AlertMessage, AppText, InlineActionButton } from "../../../components"
 import { theme } from "../../../constants/theme"
+import { TeamRole } from "../../../viewmodels/useTeamViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
 import { getSignedAmount, getTransactionCategoryType, isValidIsoDate } from "./shared"
 import { TransactionEditModal } from "./TransactionEditModal"
 
-export function TransactionsTab({ token }: { token: string }) {
+export function TransactionsTab({ token, userRole }: { token: string; userRole: TeamRole }) {
   const {
     transactions,
     isLoading,
@@ -21,6 +22,7 @@ export function TransactionsTab({ token }: { token: string }) {
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, "")
+  const canManageTransactions = userRole === "admin" || userRole === "manager"
 
   const [searchQuery, setSearchQuery] = useState("")
   const [editingTransaction, setEditingTransaction] = useState<(typeof transactions)[number] | null>(null)
@@ -134,10 +136,12 @@ export function TransactionsTab({ token }: { token: string }) {
                 {t.amount > 0 ? "+" : ""}
                 {t.amount.toLocaleString()} kr
               </AppText>
-              <View style={styles.inlineActions}>
-                <InlineActionButton icon="create-outline" onPress={() => openEditModal(t)} />
-                <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(t)} />
-              </View>
+              {canManageTransactions && (
+                <View style={styles.inlineActions}>
+                  <InlineActionButton icon="create-outline" onPress={() => openEditModal(t)} />
+                  <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(t)} />
+                </View>
+              )}
             </View>
           </View>
         ))

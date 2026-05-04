@@ -17,7 +17,7 @@ export const authService = {
             expiresIn: number
             tokenType: string
             fullName: string
-            role: 'admin' | 'manager' | 'employee' | 'auditor'
+            role: 'admin' | 'manager' | 'employee'
             organisationName: string
         }>('/auth/login', input)
     },
