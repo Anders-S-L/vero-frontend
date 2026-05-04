@@ -1,20 +1,28 @@
-import React, { useState } from "react"
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
-} from "react-native"
-import { AlertMessage, AppText, InlineActionButton } from "../../../components"
-import { theme } from "../../../constants/theme"
-import { TeamRole } from "../../../viewmodels/useTeamViewModel"
-import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
-import { getSignedAmount, getTransactionCategoryType, isValidIsoDate } from "./shared"
-import { TransactionEditModal } from "./TransactionEditModal"
+} from "react-native";
+import { AlertMessage, AppText, InlineActionButton } from "../../../components";
+import { theme } from "../../../constants/theme";
+import { TeamRole } from "../../../viewmodels/useTeamViewModel";
+import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
+import { AddTransactionSheet } from "./AddTransactionSheet";
+import { getSignedAmount, getTransactionCategoryType } from "./shared";
+import { TransactionEditModal } from "./TransactionEditModal";
 
-export function TransactionsTab({ token, userRole }: { token: string; userRole: TeamRole }) {
+type Props = {
+  token: string;
+  onTransactionSaved?: () => void;
+};
+
+export function TransactionsTab({ token, userRole, }: { token: string; userRole: TeamRole }) {
   const {
     transactions,
     isLoading,
@@ -24,128 +32,175 @@ export function TransactionsTab({ token, userRole }: { token: string; userRole: 
   } = useTransactionViewModel(token, "")
   const canManageTransactions = userRole === "admin" || userRole === "manager"
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [editingTransaction, setEditingTransaction] = useState<(typeof transactions)[number] | null>(null)
-  const [editAmount, setEditAmount] = useState("")
-  const [editDate, setEditDate] = useState("")
-  const [editDescription, setEditDescription] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<
+    (typeof transactions)[number] | null
+  >(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const closeEditModal = () => {
-    setEditingTransaction(null)
-    setEditAmount("")
-    setEditDate("")
-    setEditDescription("")
-  }
+    setEditingTransaction(null);
+    setEditAmount("");
+    setEditDate("");
+    setEditDescription("");
+  };
 
   const openEditModal = (transaction: (typeof transactions)[number]) => {
-    setEditingTransaction(transaction)
-    setEditAmount(Math.abs(transaction.amount).toString())
-    setEditDate(transaction.date)
-    setEditDescription(transaction.description ?? "")
-  }
+    setEditingTransaction(transaction);
+    setEditAmount(Math.abs(transaction.amount).toString());
+    setEditDate(transaction.date);
+    setEditDescription(transaction.description ?? "");
+  };
 
   const handleSaveEdit = async () => {
-    if (!editingTransaction || !editAmount.trim() || !editDescription.trim()) return
-    const parsedAmount = parseFloat(editAmount)
-    if (Number.isNaN(parsedAmount)) return
+    if (!editingTransaction || !editAmount.trim() || !editDescription.trim())
+      return;
+    const parsedAmount = parseFloat(editAmount);
+    if (Number.isNaN(parsedAmount)) return;
     try {
       await updateTransaction(
         editingTransaction.id,
-        getSignedAmount(parsedAmount, getTransactionCategoryType(editingTransaction)),
+        getSignedAmount(
+          parsedAmount,
+          getTransactionCategoryType(editingTransaction),
+        ),
         editDate,
         editDescription.trim(),
-      )
-      closeEditModal()
+      );
+      closeEditModal();
     } catch {
       // håndteres via error i viewmodel
     }
-  }
+  };
 
   const handleDelete = (transaction: (typeof transactions)[number]) => {
-    Alert.alert("Slet transaktion", "Er du sikker på, at du vil slette transaktionen?", [
-      { text: "Annuller", style: "cancel" },
-      {
-        text: "Slet",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteTransaction(transaction.id)
-          } catch {
-            // håndteres via error i viewmodel
-          }
+    Alert.alert(
+      "Slet transaktion",
+      "Er du sikker på, at du vil slette transaktionen?",
+      [
+        { text: "Annuller", style: "cancel" },
+        {
+          text: "Slet",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTransaction(transaction.id);
+            } catch {
+              // håndteres via error i viewmodel
+            }
+          },
         },
-      },
-    ])
-  }
+      ],
+    );
+  };
 
-  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredTransactions =
     normalizedQuery.length === 0
       ? transactions
       : transactions.filter((t) =>
-          [t.description, t.date, t.categories?.name, t.categories?.departments?.name, t.amount.toString()]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedQuery),
-        )
+        [
+          t.description,
+          t.date,
+          t.categories?.name,
+          t.categories?.departments?.name,
+          t.amount.toString(),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      );
 
   return (
-    <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
-      <AppText variant="h3" style={styles.pageTitle}>
-        Transaktioner
-      </AppText>
-
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
-        placeholderTextColor={theme.input.placeholder}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      {error && <AlertMessage type="error" message={error} />}
-
-      {isLoading ? (
-        <ActivityIndicator color={theme.colors.primary.blue} />
-      ) : filteredTransactions.length === 0 ? (
-        <AppText variant="p" color={theme.colors.text.light} style={styles.center}>
-          {transactions.length === 0
-            ? "Ingen transaktioner endnu"
-            : "Ingen transaktioner matcher din søgning"}
+    <View style={styles.screen}>
+      <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
+        <AppText variant="h3" style={styles.pageTitle}>
+          Transaktioner
         </AppText>
-      ) : (
-        filteredTransactions.map((t) => (
-          <View key={t.id} style={styles.transactionRow}>
-            <View style={styles.flex}>
-              <AppText variant="p">{t.description}</AppText>
-              <AppText variant="p" color={theme.colors.text.light}>
-                {t.date}
-              </AppText>
-              <AppText variant="p" color={theme.colors.text.light}>
-                {t.categories?.departments?.name} • {t.categories?.name}
-              </AppText>
-            </View>
-            <View style={styles.transactionActions}>
-              <AppText
-                variant="p"
-                color={t.amount > 0 ? theme.colors.status.success : theme.colors.status.error}
-              >
-                {t.amount > 0 ? "+" : ""}
-                {t.amount.toLocaleString()} kr
-              </AppText>
-              {canManageTransactions && (
+
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Søg på beskrivelse, dato, afdeling eller beløb"
+          placeholderTextColor={theme.input.placeholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        {error && <AlertMessage type="error" message={error} />}
+        {isLoading ? (
+          <ActivityIndicator color={theme.colors.primary.blue} />
+        ) : filteredTransactions.length === 0 ? (
+          <AppText
+            variant="p"
+            color={theme.colors.text.light}
+            style={styles.center}
+          >
+            {transactions.length === 0
+              ? "Ingen transaktioner endnu"
+              : "Ingen transaktioner matcher din søgning"}
+          </AppText>
+        ) : (
+          filteredTransactions.map((t) => (
+            <View key={t.id} style={styles.transactionRow}>
+              <View style={styles.flex}>
+                <AppText variant="p">{t.description}</AppText>
+                <AppText variant="p" color={theme.colors.text.light}>
+                  {t.date}
+                </AppText>
+                <AppText variant="p" color={theme.colors.text.light}>
+                  {t.categories?.departments?.name} • {t.categories?.name}
+                </AppText>
+              </View>
+              <View style={styles.transactionActions}>
+                <AppText
+                  variant="p"
+                  color={
+                    t.amount > 0
+                      ? theme.colors.status.success
+                      : theme.colors.status.error
+                  }
+                >
+                  {t.amount > 0 ? "+" : ""}
+                  {t.amount.toLocaleString("da-DK")} kr
+                </AppText>
                 <View style={styles.inlineActions}>
-                  <InlineActionButton icon="create-outline" onPress={() => openEditModal(t)} />
-                  <InlineActionButton icon="trash-outline" variant="danger" onPress={() => handleDelete(t)} />
+                  <InlineActionButton
+                    icon="create-outline"
+                    onPress={() => openEditModal(t)}
+                  />
+                  <InlineActionButton
+                    icon="trash-outline"
+                    variant="danger"
+                    onPress={() => handleDelete(t)}
+                  />
                 </View>
-              )}
+              </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </ScrollView>
+
+      <Pressable
+        style={styles.fab}
+        onPress={() => setAddModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Tilføj transaktion"
+      >
+        <Ionicons name="add" size={30} color={theme.colors.white} />
+      </Pressable>
+
+      <AddTransactionSheet
+        token={token}
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
+        onSaved={onTransactionSaved}
+      />
 
       <TransactionEditModal
         visible={editingTransaction !== null}
@@ -158,16 +213,21 @@ export function TransactionsTab({ token, userRole }: { token: string; userRole: 
         onClose={closeEditModal}
         onSave={handleSaveEdit}
       />
-    </ScrollView>
-  )
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   tab: { flex: 1 },
-  tabContent: { padding: theme.spacing.xl },
+  tabContent: { padding: theme.spacing.xl, paddingBottom: 104 },
   pageTitle: { marginBottom: theme.spacing.md },
   flex: { flex: 1 },
-  center: { textAlign: "center", alignItems: "center", justifyContent: "center" },
+  center: {
+    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   searchInput: {
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.input.border,
@@ -189,6 +249,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.background.cardBorder,
   },
-  transactionActions: { alignItems: "flex-end", gap: theme.spacing.sm, marginLeft: theme.spacing.md },
-  inlineActions: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginLeft: theme.spacing.md },
-})
+  transactionActions: {
+    alignItems: "flex-end",
+    gap: theme.spacing.sm,
+    marginLeft: theme.spacing.md,
+  },
+  inlineActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    marginLeft: theme.spacing.md,
+  },
+  fab: {
+    position: "absolute",
+    right: theme.spacing.xl,
+    bottom: 125,
+    width: 58,
+    height: 58,
+    borderRadius: theme.radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.primary.blue,
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+});

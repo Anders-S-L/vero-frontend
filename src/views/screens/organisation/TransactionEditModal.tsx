@@ -1,5 +1,5 @@
 import React from "react"
-import { AppText, BaseModal, InputField, PrimaryButton } from "../../../components"
+import { BaseModal, InputField, PrimaryButton } from "../../../components"
 
 type Props = {
   visible: boolean

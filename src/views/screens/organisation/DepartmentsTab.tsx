@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons"
 import React, { useState } from "react"
 import {
   ActivityIndicator,
@@ -7,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
 import {
   AlertMessage,
   AppText,
@@ -24,7 +24,8 @@ import { useCategoryViewModel } from "../../../viewmodels/useCategoryViewModel"
 import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel"
 import { TeamRole } from "../../../viewmodels/useTeamViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
-import { getSignedAmount, isValidIsoDate } from "./shared"
+import { AddTransactionSheet } from "./AddTransactionSheet"
+import { getSignedAmount } from "./shared"
 import { TransactionEditModal } from "./TransactionEditModal"
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
@@ -105,18 +106,13 @@ function TransactionSection({
     transactions,
     isLoading,
     error,
-    addTransaction,
+    fetchTransactions,
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, categoryId)
   const canManageTransactions = userRole === "admin" || userRole === "manager"
 
-  const [showModal, setShowModal] = useState(false)
-  const [amount, setAmount] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
-  const [description, setDescription] = useState("")
-  const [repeatMonthly, setRepeatMonthly] = useState(false)
-  const [repeatUntil, setRepeatUntil] = useState("")
+  const [showAddSheet, setShowAddSheet] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<(typeof transactions)[number] | null>(null)
   const [editAmount, setEditAmount] = useState("")
   const [editDate, setEditDate] = useState("")
@@ -134,50 +130,6 @@ function TransactionSection({
     setEditAmount(Math.abs(transaction.amount).toString())
     setEditDate(transaction.date)
     setEditDescription(transaction.description ?? "")
-  }
-
-  const handleAdd = async () => {
-    if (!amount.trim() || !description.trim()) return
-    const parsedAmount = parseFloat(amount)
-    if (Number.isNaN(parsedAmount)) return
-
-    if (!isValidIsoDate(date)) {
-      Alert.alert("Fejl", "Dato skal være i formatet YYYY-MM-DD.")
-      return
-    }
-
-    if (repeatMonthly) {
-      if (!repeatUntil || !isValidIsoDate(repeatUntil)) {
-        Alert.alert("Fejl", "Angiv en gyldig slutdato for gentagelsen.")
-        return
-      }
-      if (repeatUntil < date) {
-        Alert.alert("Fejl", "Slutdato skal være samme dag eller efter startdato.")
-        return
-      }
-    }
-
-    try {
-      const result = await addTransaction(
-        getSignedAmount(parsedAmount, categoryType),
-        date,
-        description.trim(),
-        repeatMonthly,
-        repeatMonthly ? repeatUntil : null,
-      )
-      setAmount("")
-      setDescription("")
-      setDate(new Date().toISOString().split("T")[0])
-      setRepeatMonthly(false)
-      setRepeatUntil("")
-      setShowModal(false)
-
-      if ("recurring" in result) {
-        Alert.alert("Succes", `${result.created_count} transaktioner blev oprettet.`)
-      }
-    } catch {
-      // håndteres via error i viewmodel
-    }
   }
 
   const handleSaveEdit = async () => {
@@ -222,7 +174,7 @@ function TransactionSection({
         <AppText variant="p" color={theme.colors.text.secondary}>
           Transaktioner
         </AppText>
-        <TouchableOpacity style={styles.smallBtn} onPress={() => setShowModal(true)}>
+        <TouchableOpacity style={styles.smallBtn} onPress={() => setShowAddSheet(true)}>
           <AppText variant="p" color={theme.colors.white}>
             + Tilføj
           </AppText>
@@ -263,24 +215,13 @@ function TransactionSection({
         ))
       )}
 
-      <BaseModal visible={showModal} title="Tilføj transaktion" onClose={() => setShowModal(false)}>
-        <InputField label="Beløb" placeholder="fx 5000" value={amount} onChangeText={setAmount} keyboardType="numeric" />
-        <InputField label="Dato" placeholder="YYYY-MM-DD" value={date} onChangeText={setDate} />
-        <InputField label="Beskrivelse" placeholder="fx Løn marts" value={description} onChangeText={setDescription} />
-        <DropdownField
-          label="Gentagelse"
-          options={[
-            { label: "Nej", value: "false" },
-            { label: "Ja, månedligt", value: "true" },
-          ]}
-          value={repeatMonthly ? "true" : "false"}
-          onChange={(value) => setRepeatMonthly(value === "true")}
-        />
-        {repeatMonthly && (
-          <InputField label="Gentag indtil" placeholder="YYYY-MM-DD" value={repeatUntil} onChangeText={setRepeatUntil} />
-        )}
-        <PrimaryButton label="Tilføj transaktion" onPress={handleAdd} />
-      </BaseModal>
+      <AddTransactionSheet
+        token={token}
+        visible={showAddSheet}
+        initialCategoryId={categoryId}
+        onClose={() => setShowAddSheet(false)}
+        onSaved={fetchTransactions}
+      />
 
       <TransactionEditModal
         visible={editingTransaction !== null}
@@ -320,6 +261,7 @@ function CategorySection({
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [showCatModal, setShowCatModal] = useState(false)
   const [showTxModal, setShowTxModal] = useState(false)
+  const [transactionRefreshKey, setTransactionRefreshKey] = useState(0)
   const [catName, setCatName] = useState("")
   const [catType, setCatType] = useState<CategoryType>("expense")
   const [editingCategory, setEditingCategory] = useState<(typeof categories)[number] | null>(null)
@@ -395,53 +337,6 @@ function CategorySection({
     ])
   }
 
-  const handleAddTx = async () => {
-    if (!txAmount.trim() || !txDescription.trim() || !txCategoryId) return
-    const parsedAmount = parseFloat(txAmount)
-    if (Number.isNaN(parsedAmount)) return
-
-    if (!isValidIsoDate(txDate)) {
-      Alert.alert("Fejl", "Dato skal være i formatet YYYY-MM-DD.")
-      return
-    }
-
-    if (txRepeatMonthly) {
-      if (!txRepeatUntil || !isValidIsoDate(txRepeatUntil)) {
-        Alert.alert("Fejl", "Angiv en gyldig slutdato for gentagelsen.")
-        return
-      }
-      if (txRepeatUntil < txDate) {
-        Alert.alert("Fejl", "Slutdato skal være samme dag eller efter startdato.")
-        return
-      }
-    }
-
-    const selectedCategory = categories.find((c) => c.id === txCategoryId)
-    if (!selectedCategory) return
-
-    try {
-      const result = await addTransaction(
-        getSignedAmount(parsedAmount, selectedCategory.type),
-        txDate,
-        txDescription.trim(),
-        txRepeatMonthly,
-        txRepeatMonthly ? txRepeatUntil : null,
-      )
-      setTxAmount("")
-      setTxDescription("")
-      setTxDate(new Date().toISOString().split("T")[0])
-      setTxRepeatMonthly(false)
-      setTxRepeatUntil("")
-      setShowTxModal(false)
-
-      if ("recurring" in result) {
-        Alert.alert("Succes", `${result.created_count} transaktioner blev oprettet.`)
-      }
-    } catch {
-      // håndteres via error i viewmodel
-    }
-  }
-
   return (
     <View style={styles.categorySection}>
       {error && <AlertMessage type="error" message={error} />}
@@ -506,14 +401,19 @@ function CategorySection({
             </TouchableOpacity>
 
             {selectedCatId === cat.id && (
-              <TransactionSection token={token} categoryId={cat.id} categoryType={cat.type} userRole={userRole} />
+              <TransactionSection
+                key={`${cat.id}-${transactionRefreshKey}`}
+                token={token}
+                categoryId={cat.id}
+                categoryType={cat.type} userRole={userRole}
+              />
             )}
           </View>
         ))
       )}
 
       <TouchableOpacity style={styles.addTransactionBtn} onPress={() => setShowTxModal(true)}>
-        <AppText variant="p" color={theme.colors.text.secondary}>
+        <AppText variant="p" color={theme.colors.white}>
           + Tilføj Transaktion
         </AppText>
       </TouchableOpacity>
@@ -524,25 +424,13 @@ function CategorySection({
         <PrimaryButton label="Tilføj" onPress={handleAddCat} />
       </BaseModal>
 
-      <BaseModal visible={showTxModal} title="Tilføj transaktion" onClose={() => setShowTxModal(false)}>
-        <DropdownField label="Kategori" options={categoryOptions} value={txCategoryId} onChange={setTxCategoryId} />
-        <InputField label="Beløb" placeholder="fx 5000" value={txAmount} onChangeText={setTxAmount} keyboardType="numeric" />
-        <InputField label="Dato" placeholder="YYYY-MM-DD" value={txDate} onChangeText={setTxDate} />
-        <InputField label="Beskrivelse" placeholder="fx Løn marts" value={txDescription} onChangeText={setTxDescription} />
-        <DropdownField
-          label="Gentagelse"
-          options={[
-            { label: "Nej", value: "false" },
-            { label: "Ja, månedligt", value: "true" },
-          ]}
-          value={txRepeatMonthly ? "true" : "false"}
-          onChange={(value) => setTxRepeatMonthly(value === "true")}
-        />
-        {txRepeatMonthly && (
-          <InputField label="Gentag indtil" placeholder="YYYY-MM-DD" value={txRepeatUntil} onChangeText={setTxRepeatUntil} />
-        )}
-        <PrimaryButton label="Tilføj transaktion" onPress={handleAddTx} />
-      </BaseModal>
+      <AddTransactionSheet
+        token={token}
+        visible={showTxModal}
+        initialCategoryId={selectedCatId}
+        onClose={() => setShowTxModal(false)}
+        onSaved={() => setTransactionRefreshKey((key) => key + 1)}
+      />
 
       <CategoryEditModal
         visible={editingCategory !== null}
@@ -731,13 +619,12 @@ const styles = StyleSheet.create({
   catRowActive: { borderColor: theme.colors.primary.blue },
   catIndicator: { width: 4, height: 36, borderRadius: 2, marginRight: theme.spacing.md },
   addTransactionBtn: {
-    borderWidth: theme.borderWidth.thin,
-    borderColor: theme.colors.background.cardBorder,
+    borderWidth: 0,
     borderRadius: theme.radius.sm,
     padding: theme.spacing.lg,
     alignItems: "center",
     marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.background.card,
+    backgroundColor: theme.colors.primary.blue,
   },
   smallBtn: {
     backgroundColor: theme.colors.primary.blue,

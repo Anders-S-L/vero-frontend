@@ -23,44 +23,66 @@ export const BottomTabBar = ({ tabs, activeTab, onTabPress }: Props) => {
   return (
     <View
       style={[
-        styles.container,
-        { paddingBottom: insets.bottom + theme.spacing.sm },
+        styles.wrapper,
+        { paddingBottom: insets.bottom },
       ]}
     >
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.key;
-        const color = isActive
-          ? theme.navigation.active
-          : theme.navigation.inactive;
+      <View style={styles.container}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const color = isActive
+            ? theme.navigation.active
+            : theme.navigation.inactive;
 
-        return (
-          <Pressable
-            key={tab.key}
-            style={styles.tab}
-            onPress={() => onTabPress(tab.key)}
-          >
-            <Ionicons name={tab.icon} size={24} color={color} />
-            <AppText variant="label" color={color} style={styles.label}>
-              {tab.label}
-            </AppText>
-          </Pressable>
-        );
-      })}
+          return (
+            <Pressable
+              key={tab.key}
+              style={[styles.tab, isActive && styles.activeTab]}
+              onPress={() => onTabPress(tab.key)}
+            >
+              <Ionicons name={isActive ? tab.icon.replace("-outline", "") as keyof typeof Ionicons.glyphMap : tab.icon} size={22} color={color} />
+              <AppText variant="label" color={color} style={styles.label}>
+                {tab.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: theme.spacing.lg,
+    zIndex: 20,
+  },
   container: {
     flexDirection: "row",
     backgroundColor: theme.navigation.background,
-    borderTopWidth: theme.borderWidth.thin,
-    borderTopColor: theme.navigation.border,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.sm,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.navigation.border,
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 8,
   },
   tab: {
     flex: 1,
     alignItems: "center",
-    paddingTop: theme.spacing.md,
+    justifyContent: "center",
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+  },
+  activeTab: {
+    backgroundColor: theme.colors.background.app,
   },
   label: {
     marginTop: theme.spacing.xs,
