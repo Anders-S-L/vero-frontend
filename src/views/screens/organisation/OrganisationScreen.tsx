@@ -148,6 +148,7 @@ export default function OrganisationScreen({
         {activeTab === "transaktioner" && (
           <TransactionsTab
             token={token} userRole={userRole}
+            userDepartmentId={profile?.department_id}
             onTransactionChanged={handleTransactionChanged}
           />
         )}

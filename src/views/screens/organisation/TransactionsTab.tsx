@@ -27,12 +27,14 @@ import { TransactionEditModal } from "./TransactionEditModal";
 type Props = {
   token: string;
   userRole: TeamRole;
+  userDepartmentId?: string | null;
   onTransactionChanged?: () => void | Promise<void>;
 };
 
 export function TransactionsTab({
   token,
   userRole,
+  userDepartmentId,
   onTransactionChanged,
 }: Props) {
   const {
@@ -123,19 +125,19 @@ export function TransactionsTab({
     normalizedQuery.length === 0
       ? transactions
       : transactions.filter((t) =>
-          [
-            t.description,
-            t.date,
-            formatDanishDateForInput(t.date),
-            t.categories?.name,
-            t.categories?.departments?.name,
-            t.amount.toString(),
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedQuery),
-        );
+        [
+          t.description,
+          t.date,
+          formatDanishDateForInput(t.date),
+          t.categories?.name,
+          t.categories?.departments?.name,
+          t.amount.toString(),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      );
 
   return (
     <View style={styles.screen}>
@@ -221,6 +223,8 @@ export function TransactionsTab({
 
       <AddTransactionSheet
         token={token}
+        userRole={userRole}
+        userDepartmentId={userDepartmentId}
         visible={addModalVisible}
         onClose={() => setAddModalVisible(false)}
         onSaved={handleTransactionSaved}

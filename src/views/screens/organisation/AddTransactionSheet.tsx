@@ -16,10 +16,14 @@ import { TransactionRepeatFrequency } from "../../../models/transactionModel"
 import { useCategoryViewModel } from "../../../viewmodels/useCategoryViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
 import { formatDanishDateInput, getSignedAmount, isValidDanishDate, toIsoDate } from "./shared"
+import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel"
+import { TeamRole } from "../../../viewmodels/useTeamViewModel"
 
 type Props = {
   token: string
   visible: boolean
+  userRole?: TeamRole
+  userDepartmentId?: string | null
   initialCategoryId?: string | null
   onClose: () => void
   onSaved?: () => void | Promise<void>
@@ -60,12 +64,24 @@ const normalizeAmountInput = (value: string) => {
   return { raw, display: formatDanishAmount(raw) }
 }
 
-export function AddTransactionSheet({ token, visible, initialCategoryId, onClose, onSaved }: Props) {
+export function AddTransactionSheet({
+  token,
+  userRole = "employee",
+  userDepartmentId = null,
+  visible,
+  initialCategoryId,
+  onClose,
+  onSaved,
+}: Props) {
+  const { departments } = useOrganisationViewModel(token)
   const { categories, error: categoryError } = useCategoryViewModel(token, "")
   const { addTransaction } = useTransactionViewModel(token, "")
+  const isAdmin = userRole === "admin"
+  const defaultDepartmentId = isAdmin ? "" : userDepartmentId ?? ""
 
   const [transactionType, setTransactionType] = useState<CategoryType>("expense")
   const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId ?? "")
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState(defaultDepartmentId)
   const [amount, setAmount] = useState("")
   const [amountDisplay, setAmountDisplay] = useState("")
   const [date, setDate] = useState(todayDanish())
@@ -78,20 +94,34 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId)
   const hasRepeat = repeatFrequency !== "none"
 
+  const departmentOptions = useMemo(
+    () => departments.filter((department) => department.is_active).map((department) => ({ label: department.name, value: department.id })),
+    [departments],
+  )
+
   const categoryOptions = useMemo(
     () =>
       categories
         .filter((category) =>
           category.is_active &&
+          (!selectedDepartmentId || category.department_id === selectedDepartmentId) &&
           (transactionType === "income" ? category.type === "income" : category.type !== "income"),
         )
         .map((category) => ({ label: category.name, value: category.id })),
-    [categories, transactionType],
+    [categories, selectedDepartmentId, transactionType],
   )
 
   useEffect(() => {
     if (visible) setSelectedCategoryId(initialCategoryId ?? "")
   }, [initialCategoryId, visible])
+
+  useEffect(() => {
+    if (visible) setSelectedDepartmentId(defaultDepartmentId)
+  }, [defaultDepartmentId, visible])
+
+  useEffect(() => {
+    setSelectedCategoryId("")
+  }, [selectedDepartmentId])
 
   useEffect(() => {
     if (!selectedCategory) return
@@ -111,6 +141,7 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
   const resetForm = () => {
     setTransactionType("expense")
     setSelectedCategoryId(initialCategoryId ?? "")
+    setSelectedDepartmentId(defaultDepartmentId)
     setAmount("")
     setAmountDisplay("")
     setDate(todayDanish())
@@ -229,6 +260,14 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
                 onChangeText={handleAmountChange}
                 keyboardType="decimal-pad"
               />
+              {isAdmin && (
+                <DropdownField
+                  label="Afdeling"
+                  options={departmentOptions}
+                  value={selectedDepartmentId}
+                  onChange={setSelectedDepartmentId}
+                />
+              )}
               <DropdownField
                 label="Kategori"
                 options={categoryOptions}

@@ -4,6 +4,7 @@ export type OwnProfile = {
   id: string
   full_name: string | null
   role: "admin" | "manager" | "employee"
+  department_id?: string | null
 }
 
 export const profileModel = {
