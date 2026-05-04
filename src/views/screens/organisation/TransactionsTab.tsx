@@ -14,28 +14,36 @@ import { theme } from "../../../constants/theme";
 import { TeamRole } from "../../../viewmodels/useTeamViewModel";
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
 import { AddTransactionSheet } from "./AddTransactionSheet";
-import { getSignedAmount, getTransactionCategoryType } from "./shared";
+import {
+  formatDanishDateForInput,
+  formatDanishDateInput,
+  getSignedAmount,
+  getTransactionCategoryType,
+  isValidDanishDate,
+  toIsoDate,
+} from "./shared";
 import { TransactionEditModal } from "./TransactionEditModal";
 
 type Props = {
   token: string;
   userRole: TeamRole;
-  onTransactionSaved?: () => void;
+  onTransactionChanged?: () => void | Promise<void>;
 };
 
 export function TransactionsTab({
   token,
   userRole,
-  onTransactionSaved,
+  onTransactionChanged,
 }: Props) {
   const {
     transactions,
     isLoading,
     error,
+    fetchTransactions,
     updateTransaction,
     deleteTransaction,
   } = useTransactionViewModel(token, "");
-  const canManageTransactions = userRole === "admin" || userRole === "manager";
+  const canDeleteTransactions = userRole === "admin" || userRole === "manager";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -56,7 +64,7 @@ export function TransactionsTab({
   const openEditModal = (transaction: (typeof transactions)[number]) => {
     setEditingTransaction(transaction);
     setEditAmount(Math.abs(transaction.amount).toString());
-    setEditDate(transaction.date);
+    setEditDate(formatDanishDateForInput(transaction.date));
     setEditDescription(transaction.description ?? "");
   };
 
@@ -65,6 +73,7 @@ export function TransactionsTab({
       return;
     const parsedAmount = parseFloat(editAmount);
     if (Number.isNaN(parsedAmount)) return;
+    if (!isValidDanishDate(editDate)) return;
     try {
       await updateTransaction(
         editingTransaction.id,
@@ -72,10 +81,11 @@ export function TransactionsTab({
           parsedAmount,
           getTransactionCategoryType(editingTransaction),
         ),
-        editDate,
+        toIsoDate(editDate),
         editDescription.trim(),
       );
       closeEditModal();
+      await onTransactionChanged?.();
     } catch {
       // håndteres via error i viewmodel
     }
@@ -93,6 +103,7 @@ export function TransactionsTab({
           onPress: async () => {
             try {
               await deleteTransaction(transaction.id);
+              await onTransactionChanged?.();
             } catch {
               // håndteres via error i viewmodel
             }
@@ -100,6 +111,11 @@ export function TransactionsTab({
         },
       ],
     );
+  };
+
+  const handleTransactionSaved = async () => {
+    await fetchTransactions();
+    await onTransactionChanged?.();
   };
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -110,6 +126,7 @@ export function TransactionsTab({
           [
             t.description,
             t.date,
+            formatDanishDateForInput(t.date),
             t.categories?.name,
             t.categories?.departments?.name,
             t.amount.toString(),
@@ -156,7 +173,7 @@ export function TransactionsTab({
               <View style={styles.flex}>
                 <AppText variant="p">{t.description}</AppText>
                 <AppText variant="p" color={theme.colors.text.light}>
-                  {t.date}
+                  {formatDanishDateForInput(t.date)}
                 </AppText>
                 <AppText variant="p" color={theme.colors.text.light}>
                   {t.categories?.departments?.name} • {t.categories?.name}
@@ -179,11 +196,13 @@ export function TransactionsTab({
                     icon="create-outline"
                     onPress={() => openEditModal(t)}
                   />
-                  <InlineActionButton
-                    icon="trash-outline"
-                    variant="danger"
-                    onPress={() => handleDelete(t)}
-                  />
+                  {canDeleteTransactions && (
+                    <InlineActionButton
+                      icon="trash-outline"
+                      variant="danger"
+                      onPress={() => handleDelete(t)}
+                    />
+                  )}
                 </View>
               </View>
             </View>
@@ -204,7 +223,7 @@ export function TransactionsTab({
         token={token}
         visible={addModalVisible}
         onClose={() => setAddModalVisible(false)}
-        onSaved={onTransactionSaved}
+        onSaved={handleTransactionSaved}
       />
 
       <TransactionEditModal
@@ -213,7 +232,7 @@ export function TransactionsTab({
         date={editDate}
         description={editDescription}
         onAmountChange={setEditAmount}
-        onDateChange={setEditDate}
+        onDateChange={(value) => setEditDate(formatDanishDateInput(value))}
         onDescriptionChange={setEditDescription}
         onClose={closeEditModal}
         onSave={handleSaveEdit}

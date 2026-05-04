@@ -22,7 +22,7 @@ type Props = {
   visible: boolean
   initialCategoryId?: string | null
   onClose: () => void
-  onSaved?: () => void
+  onSaved?: () => void | Promise<void>
 }
 
 const typeOptions = [
@@ -62,7 +62,7 @@ const normalizeAmountInput = (value: string) => {
 
 export function AddTransactionSheet({ token, visible, initialCategoryId, onClose, onSaved }: Props) {
   const { categories, error: categoryError } = useCategoryViewModel(token, "")
-  const { fetchTransactions, addTransaction } = useTransactionViewModel(token, "")
+  const { addTransaction } = useTransactionViewModel(token, "")
 
   const [transactionType, setTransactionType] = useState<CategoryType>("expense")
   const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId ?? "")
@@ -186,10 +186,9 @@ export function AddTransactionSheet({ token, visible, initialCategoryId, onClose
         selectedCategoryId,
         repeatFrequency,
       )
-      await fetchTransactions()
       resetForm()
+      await onSaved?.()
       onClose()
-      onSaved?.()
     } catch (e) {
       setFormError((e as Error).message || "Transaktionen kunne ikke gemmes.")
     } finally {

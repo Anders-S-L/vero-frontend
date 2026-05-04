@@ -14,7 +14,7 @@ import {
   kpiFavoriteModel,
 } from "../../../models/kpiFavoriteModel";
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
-import { KPI_COLORS, KPI_LABELS } from "./shared";
+import { formatDanishDateForInput, KPI_COLORS, KPI_LABELS } from "./shared";
 
 type Props = {
   token: string;
@@ -130,7 +130,7 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
             <View>
               <AppText variant="p">{t.description}</AppText>
               <AppText variant="p" color={theme.colors.text.light}>
-                {t.date}
+                {formatDanishDateForInput(t.date)}
               </AppText>
             </View>
             <AppText

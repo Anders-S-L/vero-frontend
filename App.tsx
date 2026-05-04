@@ -8,10 +8,23 @@ export default function App() {
   const [organisationName, setOrganisationName] = useState<string>('')
   const [role, setRole] = useState<'admin' | 'manager' | 'employee' | null>(null)
 
+  const handleLogout = () => {
+    setToken(null)
+    setOrganisationName('')
+    setRole(null)
+  }
+
   return (
     <SafeAreaProvider>
       {token
-        ? <OrganisationScreen token={token} organisationName={organisationName} userRole={role ?? 'employee'} />
+        ? (
+          <OrganisationScreen
+            token={token}
+            organisationName={organisationName}
+            userRole={role ?? 'employee'}
+            onLogout={handleLogout}
+          />
+        )
         : <AuthScreen onLogin={(t, name, userRole) => {
           setOrganisationName(name)
           setRole(userRole)

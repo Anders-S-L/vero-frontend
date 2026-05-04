@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KpiResult, kpiModel } from "../models/kpiModel";
 
-export const useKpiViewModel = (token: string, from: string, to: string) => {
+export const useKpiViewModel = (token: string, from: string, to: string, refreshSignal = 0) => {
   const [kpis, setKpis] = useState<KpiResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export const useKpiViewModel = (token: string, from: string, to: string) => {
 
   useEffect(() => {
     fetchKpis();
-  }, [fetchKpis]);
+  }, [fetchKpis, refreshSignal]);
 
   return { kpis, isLoading, error, fetchKpis };
 };
