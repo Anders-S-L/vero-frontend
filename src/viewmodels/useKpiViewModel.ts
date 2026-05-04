@@ -14,8 +14,6 @@ export const useKpiViewModel = (token: string, from: string, to: string, refresh
 
       const data = await kpiModel.getKpis(token, from, to);
 
-      console.log("KPI DATA:", JSON.stringify(data, null, 2));
-
       setKpis(data);
     } catch (e) {
       setError((e as Error).message);

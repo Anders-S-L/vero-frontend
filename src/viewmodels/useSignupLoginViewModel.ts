@@ -40,7 +40,6 @@ export const useAuthViewModel = () => {
 
     try {
       const data = await authModel.login(input)
-      console.log('login data:', data)
 
       setMessage(`Login OK. User ID: ${data.userId}`)
       setToken(data.accessToken)
