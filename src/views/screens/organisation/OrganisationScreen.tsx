@@ -1,43 +1,91 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AppText, BottomTabBar } from "../../../components";
+import { AlertMessage, AppText, BaseModal, BottomTabBar, InputField, PrimaryButton } from "../../../components";
 import { theme } from "../../../constants/theme";
 import { useKpiFavoriteViewModel } from "../../../viewmodels/useKpiFavoriteViewModel";
+import { useProfileViewModel } from "../../../viewmodels/useProfileViewModel";
 import { TeamRole } from "../../../viewmodels/useTeamViewModel";
 import { DashboardTab } from "./DashboardTab";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { OverviewTab } from "./OverviewTab";
-import { TABS } from "./shared";
+import { PeriodPreset, formatDanishDateForInput, getPeriodRange, TABS } from "./shared";
 import { TeamTab } from "./TeamTab";
 import { TransactionsTab } from "./TransactionsTab";
+
+const roleLabel = (role: TeamRole) => {
+  if (role === "admin") return "Admin";
+  if (role === "manager") return "Manager";
+  return "Employee";
+};
 
 type Props = {
   token: string;
   organisationName: string;
   userRole: TeamRole;
+  onLogout: () => void;
 };
 
 export default function OrganisationScreen({
   token,
   organisationName,
   userRole,
+  onLogout,
 }: Props) {
-  const allowedTabs = TABS.filter((tab) => {
-    if (userRole === "admin") return true
-    if (userRole === "manager") return ["afdelinger", "transaktioner", "team"].includes(tab.key)
-    return tab.key === "afdelinger"
-  })
-  const [activeTab, setActiveTab] = useState(allowedTabs[0]?.key ?? "afdelinger");
+  const bottomTabs = TABS;
+  const [activeTab, setActiveTab] = useState("overblik");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [selectedPeriodPreset, setSelectedPeriodPreset] = useState<PeriodPreset>("currentMonth");
+  const [appliedPeriod, setAppliedPeriod] = useState(() => getPeriodRange("currentMonth"));
+  const [fromInput, setFromInput] = useState(() => formatDanishDateForInput(appliedPeriod.from));
+  const [toInput, setToInput] = useState(() => formatDanishDateForInput(appliedPeriod.to));
   const [refreshKey, setRefreshKey] = useState(0);
   const insets = useSafeAreaInsets();
   const { favorites, toggleFavorite } = useKpiFavoriteViewModel(token);
+  const {
+    profile,
+    isLoading: profileLoading,
+    isSaving: profileSaving,
+    error: profileError,
+    fetchProfile,
+    updateName,
+  } = useProfileViewModel(token);
+
+  React.useEffect(() => {
+    setProfileName(profile?.full_name ?? "");
+  }, [profile?.full_name]);
 
   const navigateFromSettings = (tab: string) => {
+    if (userRole === "employee" && tab === "afdelinger") return;
     setActiveTab(tab);
     setSettingsOpen(false);
+  };
+
+  const handleLogout = () => {
+    setSettingsOpen(false);
+    onLogout();
+  };
+
+  const openProfile = () => {
+    setSettingsOpen(false);
+    setProfileOpen(true);
+    fetchProfile();
+  };
+
+  const handleSaveProfile = async () => {
+    if (profileName.trim().length < 2) return;
+    try {
+      await updateName(profileName.trim());
+    } catch {
+      // Error vises i modal via viewmodel.
+    }
+  };
+
+  const handleTransactionChanged = () => {
+    setRefreshKey((key) => key + 1);
   };
 
   return (
@@ -61,7 +109,7 @@ export default function OrganisationScreen({
               {organisationName}
             </AppText>
             <AppText variant="p" color="rgba(255,255,255,0.82)">
-              CEO Panel
+              Organisationspanel
             </AppText>
           </View>
         </View>
@@ -90,19 +138,33 @@ export default function OrganisationScreen({
             favorites={favorites}
           />
         )}
-        {activeTab === "afdelinger" && <DepartmentsTab token={token} userRole={userRole} />}
+        {activeTab === "afdelinger" && userRole !== "employee" && (
+          <DepartmentsTab
+            token={token}
+            userRole={userRole}
+            onTransactionChanged={handleTransactionChanged}
+          />
+        )}
         {activeTab === "transaktioner" && (
           <TransactionsTab
             token={token} userRole={userRole}
-            onTransactionSaved={() => setRefreshKey((key) => key + 1)}
+            onTransactionChanged={handleTransactionChanged}
           />
         )}
         {activeTab === "dashboards" && (
           <DashboardTab
-            key={`dashboard-${refreshKey}`}
             token={token}
             favorites={favorites}
             toggleFavorite={toggleFavorite}
+            selectedPeriodPreset={selectedPeriodPreset}
+            appliedPeriod={appliedPeriod}
+            fromInput={fromInput}
+            toInput={toInput}
+            setSelectedPeriodPreset={setSelectedPeriodPreset}
+            setAppliedPeriod={setAppliedPeriod}
+            setFromInput={setFromInput}
+            setToInput={setToInput}
+            refreshSignal={refreshKey}
           />
         )}
         {activeTab === "team" && <TeamTab token={token} userRole={userRole} />}
@@ -121,15 +183,28 @@ export default function OrganisationScreen({
           <View style={[styles.settingsMenu, { top: insets.top + 52 }]}>
             <Pressable
               style={styles.menuItem}
-              onPress={() => navigateFromSettings("afdelinger")}
+              onPress={openProfile}
             >
               <Ionicons
-                name="business-outline"
+                name="person-outline"
                 size={20}
                 color={theme.colors.text.secondary}
               />
-              <AppText variant="p">Afdelinger</AppText>
+              <AppText variant="p">Profil</AppText>
             </Pressable>
+            {userRole !== "employee" && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => navigateFromSettings("afdelinger")}
+              >
+                <Ionicons
+                  name="business-outline"
+                  size={20}
+                  color={theme.colors.text.secondary}
+                />
+                <AppText variant="p">Afdelinger</AppText>
+              </Pressable>
+            )}
             <Pressable
               style={styles.menuItem}
               onPress={() => navigateFromSettings("team")}
@@ -141,15 +216,63 @@ export default function OrganisationScreen({
               />
               <AppText variant="p">Team</AppText>
             </Pressable>
+            <View style={styles.menuDivider} />
+            <Pressable
+              style={styles.menuItem}
+              onPress={handleLogout}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color={theme.colors.status.error}
+              />
+              <AppText variant="p" color={theme.colors.status.error}>
+                Log ud
+              </AppText>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
 
       <BottomTabBar
-        tabs={TABS}
+        tabs={bottomTabs}
         activeTab={activeTab}
         onTabPress={setActiveTab}
       />
+
+      <BaseModal
+        visible={profileOpen}
+        title="Profil"
+        onClose={() => setProfileOpen(false)}
+      >
+        {profileError && <AlertMessage type="error" message={profileError} />}
+        {profileLoading ? (
+          <ActivityIndicator color={theme.colors.primary.blue} />
+        ) : (
+          <>
+            <InputField
+              label="Navn"
+              placeholder="Dit navn"
+              value={profileName}
+              onChangeText={setProfileName}
+            />
+            <View style={styles.profileRankRow}>
+              <AppText variant="p" color={theme.colors.text.secondary}>
+                Rank
+              </AppText>
+              <AppText variant="h4">
+                {roleLabel((profile?.role ?? userRole) as TeamRole)}
+              </AppText>
+            </View>
+            <PrimaryButton
+              label="Gem navn"
+              onPress={handleSaveProfile}
+              loading={profileSaving}
+              disabled={profileName.trim().length < 2}
+            />
+          </>
+        )}
+      </BaseModal>
     </View>
   );
 }
@@ -224,5 +347,19 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.background.cardBorder,
+    marginVertical: theme.spacing.xs,
+  },
+  profileRankRow: {
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.background.cardBorder,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.background.app,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    gap: theme.spacing.xs,
   },
 });

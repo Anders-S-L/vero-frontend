@@ -25,7 +25,13 @@ import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationVie
 import { TeamRole } from "../../../viewmodels/useTeamViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
 import { AddTransactionSheet } from "./AddTransactionSheet"
-import { getSignedAmount } from "./shared"
+import {
+  formatDanishDateForInput,
+  formatDanishDateInput,
+  getSignedAmount,
+  isValidDanishDate,
+  toIsoDate,
+} from "./shared"
 import { TransactionEditModal } from "./TransactionEditModal"
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
@@ -96,11 +102,13 @@ function TransactionSection({
   categoryId,
   categoryType,
   userRole,
+  onTransactionChanged,
 }: {
   token: string
   categoryId: string
   categoryType: CategoryType
   userRole: TeamRole
+  onTransactionChanged?: () => void | Promise<void>
 }) {
   const {
     transactions,
@@ -128,7 +136,7 @@ function TransactionSection({
   const openEditModal = (transaction: (typeof transactions)[number]) => {
     setEditingTransaction(transaction)
     setEditAmount(Math.abs(transaction.amount).toString())
-    setEditDate(transaction.date)
+    setEditDate(formatDanishDateForInput(transaction.date))
     setEditDescription(transaction.description ?? "")
   }
 
@@ -136,14 +144,16 @@ function TransactionSection({
     if (!editingTransaction || !editAmount.trim() || !editDescription.trim()) return
     const parsedAmount = parseFloat(editAmount)
     if (Number.isNaN(parsedAmount)) return
+    if (!isValidDanishDate(editDate)) return
     try {
       await updateTransaction(
         editingTransaction.id,
         getSignedAmount(parsedAmount, categoryType),
-        editDate,
+        toIsoDate(editDate),
         editDescription.trim(),
       )
       closeEditModal()
+      await onTransactionChanged?.()
     } catch {
       // håndteres via error i viewmodel
     }
@@ -158,6 +168,7 @@ function TransactionSection({
         onPress: async () => {
           try {
             await deleteTransaction(transaction.id)
+            await onTransactionChanged?.()
           } catch {
             // håndteres via error i viewmodel
           }
@@ -193,7 +204,7 @@ function TransactionSection({
             <View style={styles.flex}>
               <AppText variant="p">{t.description}</AppText>
               <AppText variant="p" color={theme.colors.text.light}>
-                {t.date}
+                {formatDanishDateForInput(t.date)}
               </AppText>
             </View>
             <View style={styles.transactionActions}>
@@ -220,7 +231,10 @@ function TransactionSection({
         visible={showAddSheet}
         initialCategoryId={categoryId}
         onClose={() => setShowAddSheet(false)}
-        onSaved={fetchTransactions}
+        onSaved={async () => {
+          await fetchTransactions()
+          await onTransactionChanged?.()
+        }}
       />
 
       <TransactionEditModal
@@ -229,7 +243,7 @@ function TransactionSection({
         date={editDate}
         description={editDescription}
         onAmountChange={setEditAmount}
-        onDateChange={setEditDate}
+        onDateChange={(value) => setEditDate(formatDanishDateInput(value))}
         onDescriptionChange={setEditDescription}
         onClose={closeEditModal}
         onSave={handleSaveEdit}
@@ -244,10 +258,12 @@ function CategorySection({
   token,
   departmentId,
   userRole,
+  onTransactionChanged,
 }: {
   token: string
   departmentId: string
   userRole: TeamRole
+  onTransactionChanged?: () => void | Promise<void>
 }) {
   const {
     categories,
@@ -268,21 +284,12 @@ function CategorySection({
   const [editCatName, setEditCatName] = useState("")
   const [editCatType, setEditCatType] = useState<CategoryType>("expense")
 
-  const [txCategoryId, setTxCategoryId] = useState("")
-  const [txAmount, setTxAmount] = useState("")
-  const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0])
-  const [txDescription, setTxDescription] = useState("")
-  const [txRepeatMonthly, setTxRepeatMonthly] = useState(false)
-  const [txRepeatUntil, setTxRepeatUntil] = useState("")
-
-  const { addTransaction } = useTransactionViewModel(token, txCategoryId)
   const canManageCategories = userRole === "admin" || userRole === "manager"
 
   const visibleCategories =
     userRole === "employee"
       ? categories.filter((c) => c.type === "income" || c.type === "expense")
       : categories
-  const categoryOptions = visibleCategories.map((c) => ({ label: c.name, value: c.id }))
   const typeOptions = [
     { label: "Indtægt", value: "income" },
     { label: "Udgift", value: "expense" },
@@ -405,7 +412,9 @@ function CategorySection({
                 key={`${cat.id}-${transactionRefreshKey}`}
                 token={token}
                 categoryId={cat.id}
-                categoryType={cat.type} userRole={userRole}
+                categoryType={cat.type}
+                userRole={userRole}
+                onTransactionChanged={onTransactionChanged}
               />
             )}
           </View>
@@ -429,7 +438,10 @@ function CategorySection({
         visible={showTxModal}
         initialCategoryId={selectedCatId}
         onClose={() => setShowTxModal(false)}
-        onSaved={() => setTransactionRefreshKey((key) => key + 1)}
+        onSaved={async () => {
+          setTransactionRefreshKey((key) => key + 1)
+          await onTransactionChanged?.()
+        }}
       />
 
       <CategoryEditModal
@@ -448,7 +460,15 @@ function CategorySection({
 
 // ── DEPARTMENTS TAB ───────────────────────────────────────────────────────────
 
-export function DepartmentsTab({ token, userRole }: { token: string; userRole: TeamRole }) {
+export function DepartmentsTab({
+  token,
+  userRole,
+  onTransactionChanged,
+}: {
+  token: string
+  userRole: TeamRole
+  onTransactionChanged?: () => void | Promise<void>
+}) {
   const {
     departments,
     isLoading,
@@ -555,7 +575,12 @@ export function DepartmentsTab({ token, userRole }: { token: string; userRole: T
               </TouchableOpacity>
 
               {selectedDeptId === item.id && (
-                <CategorySection token={token} departmentId={item.id} userRole={userRole} />
+                <CategorySection
+                  token={token}
+                  departmentId={item.id}
+                  userRole={userRole}
+                  onTransactionChanged={onTransactionChanged}
+                />
               )}
             </View>
           )}

@@ -35,9 +35,11 @@ export function TransactionEditModal({
       />
       <InputField
         label="Dato"
-        placeholder="YYYY-MM-DD"
+        placeholder="DD-MM-YYYY"
         value={date}
         onChangeText={onDateChange}
+        keyboardType="number-pad"
+        maxLength={10}
       />
       <InputField
         label="Beskrivelse"

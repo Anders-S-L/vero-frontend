@@ -81,16 +81,12 @@ export function TeamTab({ token, userRole }: Props) {
     <ScrollView style={styles.tab} contentContainerStyle={styles.tabContent}>
       {error && <AlertMessage type="error" message={error} />}
 
-      <PrimaryButton
-        label="Inviter Medarbejder"
-        onPress={() => setShowInviteModal(true)}
-        disabled={!canInvite}
-        loading={inviteLoading}
-      />
-      {!canInvite && (
-        <AppText variant="p" color={theme.colors.text.light} style={styles.hint}>
-          Kun CEO/admin eller manager kan invitere brugere.
-        </AppText>
+      {canInvite && (
+        <PrimaryButton
+          label="Inviter Medarbejder"
+          onPress={() => setShowInviteModal(true)}
+          loading={inviteLoading}
+        />
       )}
 
       <View style={styles.statGrid}>
@@ -166,44 +162,46 @@ export function TeamTab({ token, userRole }: Props) {
         ))
       )}
 
-      <BaseModal
-        visible={showInviteModal}
-        title="Inviter medarbejder"
-        onClose={() => setShowInviteModal(false)}
-      >
-        <InputField
-          label="Fulde navn"
-          placeholder="fx Maria Jensen"
-          value={inviteName}
-          onChangeText={setInviteName}
-        />
-        <InputField
-          label="Email"
-          placeholder="fx maria@firma.dk"
-          value={inviteEmail}
-          onChangeText={setInviteEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <DropdownField
-          label="Rolle"
-          options={roleOptions}
-          value={inviteRole}
-          onChange={(value) => setInviteRole(value as "manager" | "employee")}
-        />
-        <DropdownField
-          label="Afdeling"
-          options={departmentOptions}
-          value={inviteDepartmentId}
-          onChange={setInviteDepartmentId}
-        />
-        <PrimaryButton
-          label="Send invitation"
-          onPress={handleInvite}
-          loading={inviteLoading}
-          disabled={!inviteName || !inviteEmail || !inviteDepartmentId}
-        />
-      </BaseModal>
+      {canInvite && (
+        <BaseModal
+          visible={showInviteModal}
+          title="Inviter medarbejder"
+          onClose={() => setShowInviteModal(false)}
+        >
+          <InputField
+            label="Fulde navn"
+            placeholder="fx Maria Jensen"
+            value={inviteName}
+            onChangeText={setInviteName}
+          />
+          <InputField
+            label="Email"
+            placeholder="fx maria@firma.dk"
+            value={inviteEmail}
+            onChangeText={setInviteEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <DropdownField
+            label="Rolle"
+            options={roleOptions}
+            value={inviteRole}
+            onChange={(value) => setInviteRole(value as "manager" | "employee")}
+          />
+          <DropdownField
+            label="Afdeling"
+            options={departmentOptions}
+            value={inviteDepartmentId}
+            onChange={setInviteDepartmentId}
+          />
+          <PrimaryButton
+            label="Send invitation"
+            onPress={handleInvite}
+            loading={inviteLoading}
+            disabled={!inviteName || !inviteEmail || !inviteDepartmentId}
+          />
+        </BaseModal>
+      )}
     </ScrollView>
   )
 }
@@ -213,7 +211,6 @@ const styles = StyleSheet.create({
   tabContent: { padding: theme.spacing.xl, gap: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   flex: { flex: 1 },
   center: { textAlign: "center", alignItems: "center", justifyContent: "center" },
-  hint: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.md },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.md },
   statCard: {
     width: "47%",

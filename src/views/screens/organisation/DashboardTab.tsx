@@ -118,16 +118,34 @@ type Props = {
   token: string
   favorites: string[]
   toggleFavorite: (key: string) => void
+  selectedPeriodPreset: PeriodPreset
+  appliedPeriod: { from: string; to: string }
+  fromInput: string
+  toInput: string
+  setSelectedPeriodPreset: (preset: PeriodPreset) => void
+  setAppliedPeriod: (period: { from: string; to: string }) => void
+  setFromInput: (value: string) => void
+  setToInput: (value: string) => void
+  refreshSignal: number
 }
 
-export function DashboardTab({ token, favorites, toggleFavorite }: Props) {
-  const [selectedPeriodPreset, setSelectedPeriodPreset] = useState<PeriodPreset>("currentMonth")
-  const [appliedPeriod, setAppliedPeriod] = useState(() => getPeriodRange("currentMonth"))
-  const [fromInput, setFromInput] = useState(() => formatDanishDateForInput(appliedPeriod.from))
-  const [toInput, setToInput] = useState(() => formatDanishDateForInput(appliedPeriod.to))
+export function DashboardTab({
+  token,
+  favorites,
+  toggleFavorite,
+  selectedPeriodPreset,
+  appliedPeriod,
+  fromInput,
+  toInput,
+  setSelectedPeriodPreset,
+  setAppliedPeriod,
+  setFromInput,
+  setToInput,
+  refreshSignal,
+}: Props) {
   const [periodError, setPeriodError] = useState<string | null>(null)
 
-  const { kpis, isLoading, error } = useKpiViewModel(token, appliedPeriod.from, appliedPeriod.to)
+  const { kpis, isLoading, error } = useKpiViewModel(token, appliedPeriod.from, appliedPeriod.to, refreshSignal)
 
   const [selectedKpis, setSelectedKpis] = useState<KpiKey[]>([...ALL_KPI_KEYS])
   const [showSelector, setShowSelector] = useState(false)
