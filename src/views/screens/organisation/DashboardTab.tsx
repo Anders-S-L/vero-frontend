@@ -18,6 +18,8 @@ import {
 } from "../../../components";
 import { theme } from "../../../constants/theme";
 import { KpiMetric } from "../../../models/kpiModel";
+import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel";
+import { TeamRole } from "../../../viewmodels/useTeamViewModel";
 import { useKpiViewModel } from "../../../viewmodels/useKpiViewModel";
 import {
   PeriodPreset,
@@ -136,6 +138,8 @@ const PERIOD_PRESETS: PeriodPreset[] = [
 
 type Props = {
   token: string;
+  userRole: TeamRole;
+  userDepartmentId?: string | null;
   favorites: string[];
   toggleFavorite: (key: string) => void;
   selectedPeriodPreset: PeriodPreset;
@@ -151,6 +155,8 @@ type Props = {
 
 export function DashboardTab({
   token,
+  userRole,
+  userDepartmentId,
   favorites,
   toggleFavorite,
   selectedPeriodPreset,
@@ -164,11 +170,20 @@ export function DashboardTab({
   refreshSignal,
 }: Props) {
   const [periodError, setPeriodError] = useState<string | null>(null);
+  const { departments } = useOrganisationViewModel(token);
+  const isAdmin = userRole === "admin";
+  const initialDepartmentId = isAdmin ? "" : userDepartmentId ?? "";
+  const [selectedDepartmentId, setSelectedDepartmentId] =
+    useState(initialDepartmentId);
+  const departmentIdForKpis = isAdmin
+    ? selectedDepartmentId || undefined
+    : userDepartmentId || undefined;
 
   const { kpis, isLoading, error } = useKpiViewModel(
     token,
     appliedPeriod.from,
     appliedPeriod.to,
+    departmentIdForKpis,
     refreshSignal,
   );
 
@@ -236,6 +251,22 @@ export function DashboardTab({
       </AppText>
 
       <View style={styles.periodCard}>
+        {isAdmin && (
+          <DropdownField
+            label="Afdeling"
+            options={[
+              { label: "Hele virksomheden", value: "" },
+              ...departments
+                .filter((department) => department.is_active)
+                .map((department) => ({
+                  label: department.name,
+                  value: department.id,
+                })),
+            ]}
+            value={selectedDepartmentId}
+            onChange={setSelectedDepartmentId}
+          />
+        )}
         <DropdownField
           label="Periode"
           options={periodOptions}

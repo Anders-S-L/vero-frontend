@@ -153,8 +153,11 @@ export default function OrganisationScreen({
           />
         )}
         {activeTab === "dashboards" && (
+
           <DashboardTab
             token={token}
+            userRole={userRole}
+            userDepartmentId={profile?.department_id}
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             selectedPeriodPreset={selectedPeriodPreset}

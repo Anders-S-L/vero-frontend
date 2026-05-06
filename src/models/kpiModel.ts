@@ -38,7 +38,10 @@ export const kpiModel = {
     token: string,
     from: string,
     to: string,
+    departmentId?: string,
   ): Promise<KpiResult> => {
-    return getJson<KpiResult>(`/kpis?from=${from}&to=${to}`, token);
+    const params = new URLSearchParams({ from, to });
+    if (departmentId) params.set("department_id", departmentId);
+    return getJson<KpiResult>(`/kpis?${params.toString()}`, token);
   },
 };
