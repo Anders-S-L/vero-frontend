@@ -1,13 +1,13 @@
 import React from "react";
-import { Text, TextStyle } from "react-native";
+import { StyleProp, Text, TextProps, TextStyle } from "react-native";
 import { theme } from "../../constants/theme";
 
 type Variant = "h1" | "h2" | "h3" | "h4" | "p" | "label" | "input" | "button";
 
-type Props = {
+type Props = TextProps & {
   variant?: Variant;
   color?: string;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   children: React.ReactNode;
 };
 
@@ -46,8 +46,9 @@ const variantStyles = {
   },
 };
 
-export const AppText = ({ variant = "p", color, style, children }: Props) => (
+export const AppText = ({ variant = "p", color, style, children, ...props }: Props) => (
   <Text
+    {...props}
     style={[
       variantStyles[variant],
       { color: color ?? theme.colors.text.primary },

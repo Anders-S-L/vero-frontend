@@ -145,14 +145,18 @@ export function OverviewTab({
       ) : (
         recent.map((t) => (
           <View key={t.id} style={styles.transactionRow}>
-            <View>
-              <AppText variant="p">{t.description}</AppText>
+            <View style={styles.transactionInfo}>
+              <AppText variant="p" numberOfLines={1} ellipsizeMode="tail">
+                {t.description}
+              </AppText>
               <AppText variant="p" color={theme.colors.text.light}>
                 {formatDanishDateForInput(t.date)}
               </AppText>
             </View>
             <AppText
               variant="p"
+              numberOfLines={1}
+              style={styles.transactionAmount}
               color={
                 t.amount > 0
                   ? theme.colors.status.success
@@ -246,6 +250,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.background.cardBorder,
+  },
+  transactionInfo: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: theme.spacing.md,
+  },
+  transactionAmount: {
+    flexShrink: 0,
+    textAlign: "right",
   },
   graphHint: {
     paddingVertical: theme.spacing.xl,
