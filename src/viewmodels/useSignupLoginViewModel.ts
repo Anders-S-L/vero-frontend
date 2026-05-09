@@ -41,9 +41,12 @@ export const useAuthViewModel = () => {
     try {
       const data = await authModel.login(input)
 
-      setMessage(`Login OK. User ID: ${data.userId}`)
+      if (!data.accessToken || !data.role) {
+        throw new Error('Login lykkedes, men serveren returnerede ikke rolle/token.')
+      }
+
       setToken(data.accessToken)
-      setOrganisationName(data.organisationName)
+      setOrganisationName(data.organisationName ?? '')
       setRole(data.role)
       // Gem token i SecureStore/Keychain i rigtig app.
     } catch (e) {
