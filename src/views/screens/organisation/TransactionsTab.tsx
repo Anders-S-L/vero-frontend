@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { AlertMessage, AppText, InlineActionButton } from "../../../components";
 import { theme } from "../../../constants/theme";
+import { TransactionCostBehavior } from "../../../models/transactionModel";
 import { TeamRole } from "../../../viewmodels/useTeamViewModel";
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
 import { AddTransactionSheet } from "./AddTransactionSheet";
@@ -55,12 +56,15 @@ export function TransactionsTab({
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editCostBehavior, setEditCostBehavior] =
+    useState<TransactionCostBehavior>("variable");
 
   const closeEditModal = () => {
     setEditingTransaction(null);
     setEditAmount("");
     setEditDate("");
     setEditDescription("");
+    setEditCostBehavior("variable");
   };
 
   const openEditModal = (transaction: (typeof transactions)[number]) => {
@@ -68,6 +72,7 @@ export function TransactionsTab({
     setEditAmount(Math.abs(transaction.amount).toString());
     setEditDate(formatDanishDateForInput(transaction.date));
     setEditDescription(transaction.description ?? "");
+    setEditCostBehavior(transaction.cost_behavior ?? "variable");
   };
 
   const handleSaveEdit = async () => {
@@ -85,6 +90,9 @@ export function TransactionsTab({
         ),
         toIsoDate(editDate),
         editDescription.trim(),
+        getTransactionCategoryType(editingTransaction) === "expense"
+          ? editCostBehavior
+          : null,
       );
       closeEditModal();
       await onTransactionChanged?.();
@@ -180,6 +188,11 @@ export function TransactionsTab({
                 <AppText variant="p" color={theme.colors.text.light}>
                   {t.categories?.departments?.name} • {t.categories?.name}
                 </AppText>
+                {getTransactionCategoryType(t) === "expense" && t.cost_behavior && (
+                  <AppText variant="p" color={theme.colors.text.light}>
+                    {t.cost_behavior === "fixed" ? "Fast udgift" : "Variabel udgift"}
+                  </AppText>
+                )}
               </View>
               <View style={styles.transactionActions}>
                 <AppText
@@ -235,9 +248,16 @@ export function TransactionsTab({
         amount={editAmount}
         date={editDate}
         description={editDescription}
+        costBehavior={editCostBehavior}
+        showCostBehavior={
+          editingTransaction
+            ? getTransactionCategoryType(editingTransaction) === "expense"
+            : false
+        }
         onAmountChange={setEditAmount}
         onDateChange={(value) => setEditDate(formatDanishDateInput(value))}
         onDescriptionChange={setEditDescription}
+        onCostBehaviorChange={setEditCostBehavior}
         onClose={closeEditModal}
         onSave={handleSaveEdit}
       />

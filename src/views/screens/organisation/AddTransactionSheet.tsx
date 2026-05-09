@@ -12,7 +12,7 @@ import {
 import { AlertMessage, AppText, DropdownField, InputField, PrimaryButton } from "../../../components"
 import { theme } from "../../../constants/theme"
 import { CategoryType } from "../../../models/categoryModel"
-import { TransactionRepeatFrequency } from "../../../models/transactionModel"
+import { TransactionCostBehavior, TransactionRepeatFrequency } from "../../../models/transactionModel"
 import { useCategoryViewModel } from "../../../viewmodels/useCategoryViewModel"
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel"
 import { formatDanishDateInput, getSignedAmount, isValidDanishDate, toIsoDate } from "./shared"
@@ -39,6 +39,11 @@ const recurrenceOptions = [
   { label: "Ugentligt", value: "weekly" },
   { label: "Månedligt", value: "monthly" },
   { label: "Årligt", value: "yearly" },
+]
+
+const costBehaviorOptions = [
+  { label: "Variabel", value: "variable" },
+  { label: "Fast", value: "fixed" },
 ]
 
 const todayDanish = () => {
@@ -86,6 +91,7 @@ export function AddTransactionSheet({
   const [amountDisplay, setAmountDisplay] = useState("")
   const [date, setDate] = useState(todayDanish())
   const [description, setDescription] = useState("")
+  const [costBehavior, setCostBehavior] = useState<TransactionCostBehavior>("variable")
   const [repeatFrequency, setRepeatFrequency] = useState<TransactionRepeatFrequency>("none")
   const [repeatUntil, setRepeatUntil] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
@@ -93,6 +99,7 @@ export function AddTransactionSheet({
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId)
   const hasRepeat = repeatFrequency !== "none"
+  const isExpenseCategory = selectedCategory?.type === "expense"
 
   const departmentOptions = useMemo(
     () => departments.filter((department) => department.is_active).map((department) => ({ label: department.name, value: department.id })),
@@ -146,6 +153,7 @@ export function AddTransactionSheet({
     setAmountDisplay("")
     setDate(todayDanish())
     setDescription("")
+    setCostBehavior("variable")
     setRepeatFrequency("none")
     setRepeatUntil("")
     setFormError(null)
@@ -212,6 +220,7 @@ export function AddTransactionSheet({
         getSignedAmount(parsedAmount, selectedCategory.type),
         toIsoDate(date),
         description.trim(),
+        isExpenseCategory ? costBehavior : null,
         repeatFrequency === "monthly",
         hasRepeat ? toIsoDate(repeatUntil) : null,
         selectedCategoryId,
@@ -274,6 +283,14 @@ export function AddTransactionSheet({
                 value={selectedCategoryId}
                 onChange={setSelectedCategoryId}
               />
+              {isExpenseCategory && (
+                <DropdownField
+                  label="Omkostningstype"
+                  options={costBehaviorOptions}
+                  value={costBehavior}
+                  onChange={(value) => setCostBehavior(value as TransactionCostBehavior)}
+                />
+              )}
               <InputField
                 label="Dato"
                 placeholder="DD-MM-YYYY / DD-MM-YY"

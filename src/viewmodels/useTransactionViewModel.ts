@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
     CreateTransactionResponse,
     Transaction,
+    TransactionCostBehavior,
     TransactionRepeatFrequency,
     transactionModel,
 } from '../models/transactionModel'
@@ -27,6 +28,7 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         amount: number,
         date: string,
         description: string | null,
+        costBehavior: TransactionCostBehavior | null = null,
         repeatMonthly = false,
         repeatUntil: string | null = null,
         categoryIdOverride?: string,
@@ -40,6 +42,7 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
                 date,
                 targetCategoryId,
                 description,
+                costBehavior,
                 repeatMonthly,
                 repeatUntil,
                 repeatFrequency,
@@ -63,9 +66,15 @@ export const useTransactionViewModel = (token: string, categoryId: string) => {
         }
     }
 
-    const updateTransaction = async (id: string, amount: number, date: string, description: string | null): Promise<Transaction> => {
+    const updateTransaction = async (
+        id: string,
+        amount: number,
+        date: string,
+        description: string | null,
+        costBehavior: TransactionCostBehavior | null = null,
+    ): Promise<Transaction> => {
         try {
-            const data = await transactionModel.updateTransaction(token, id, amount, date, description)
+            const data = await transactionModel.updateTransaction(token, id, amount, date, description, costBehavior)
             setTransactions(prev => prev.map(transaction => transaction.id === id ? { ...transaction, ...data } : transaction))
             return data
         } catch (e) {

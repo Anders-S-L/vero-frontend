@@ -18,6 +18,9 @@ export const kpiFavoriteModel = {
     replaceFavorites: (token: string, favorites: string[]): Promise<string[]> =>
         putJsonAuth<string[]>('/kpi-favorites', { favorites }, token),
 
-    getHistory: (token: string, kpiKey: string, from: string, to: string): Promise<KpiHistoryPoint[]> =>
-        getJson<KpiHistoryPoint[]>(`/kpis/history?kpiKey=${kpiKey}&from=${from}&to=${to}`, token),
+    getHistory: (token: string, kpiKey: string, from: string, to: string, departmentId?: string): Promise<KpiHistoryPoint[]> => {
+        const params = new URLSearchParams({ kpiKey, from, to })
+        if (departmentId) params.set('department_id', departmentId)
+        return getJson<KpiHistoryPoint[]>(`/kpis/history?${params.toString()}`, token)
+    },
 }

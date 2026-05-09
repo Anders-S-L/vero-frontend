@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Category, categoryModel, CategoryType } from '../models/categoryModel'
+import { Category, categoryModel, CategoryType, CostBehavior } from '../models/categoryModel'
 
 export const useCategoryViewModel = (token: string, departmentId: string) => {
     const [categories, setCategories] = useState<Category[]>([])
@@ -18,18 +18,18 @@ export const useCategoryViewModel = (token: string, departmentId: string) => {
         }
     }, [token, departmentId])
 
-    const addCategory = async (name: string, type: CategoryType) => {
+    const addCategory = async (name: string, type: CategoryType, costBehavior: CostBehavior | null = null) => {
         try {
-            const data = await categoryModel.createCategory(token, name, type, departmentId)
+            const data = await categoryModel.createCategory(token, name, type, departmentId, costBehavior)
             setCategories(prev => [...prev, data])
         } catch (e) {
             setError((e as Error).message)
         }
     }
 
-    const updateCategory = async (id: string, name: string, type: CategoryType) => {
+    const updateCategory = async (id: string, name: string, type: CategoryType, costBehavior: CostBehavior | null = null) => {
         try {
-            const data = await categoryModel.updateCategory(token, id, name, type)
+            const data = await categoryModel.updateCategory(token, id, name, type, costBehavior)
             setCategories(prev => prev.map(category => category.id === id ? data : category))
         } catch (e) {
             setError((e as Error).message)

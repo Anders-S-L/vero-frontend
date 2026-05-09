@@ -6,6 +6,7 @@ export type Transaction = {
     amount: number
     date: string
     description: string | null
+    cost_behavior: TransactionCostBehavior | null
     created_at: string
     categories?: {
         id: string
@@ -28,6 +29,7 @@ export type CreateTransactionResponse =
     }
 
 export type TransactionRepeatFrequency = 'none' | 'weekly' | 'monthly' | 'yearly'
+export type TransactionCostBehavior = 'variable' | 'fixed'
 
 export const transactionModel = {
     getTransactions: (token: string) =>
@@ -39,6 +41,7 @@ export const transactionModel = {
         date: string,
         category_id: string,
         description: string | null,
+        cost_behavior: TransactionCostBehavior | null = null,
         repeat_monthly = false,
         repeat_until: string | null = null,
         repeat_frequency: TransactionRepeatFrequency = 'none',
@@ -50,6 +53,7 @@ export const transactionModel = {
                 date,
                 category_id,
                 description,
+                cost_behavior,
                 repeat_monthly,
                 repeat_until,
                 repeat_frequency: repeat_frequency === 'none' ? null : repeat_frequency,
@@ -57,8 +61,8 @@ export const transactionModel = {
             token,
         ),
 
-    updateTransaction: (token: string, id: string, amount: number, date: string, description: string | null) =>
-        putJsonAuth<Transaction>(`/transactions/${id}`, { amount, date, description }, token),
+    updateTransaction: (token: string, id: string, amount: number, date: string, description: string | null, cost_behavior: TransactionCostBehavior | null = null) =>
+        putJsonAuth<Transaction>(`/transactions/${id}`, { amount, date, description, cost_behavior }, token),
 
     deleteTransaction: (token: string, id: string) =>
         deleteJsonAuth(`/transactions/${id}`, token)

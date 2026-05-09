@@ -13,6 +13,9 @@ import {
   KpiHistoryPoint,
   kpiFavoriteModel,
 } from "../../../models/kpiFavoriteModel";
+import { DropdownField } from "../../../components";
+import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel";
+import { TeamRole } from "../../../viewmodels/useTeamViewModel";
 import { useTransactionViewModel } from "../../../viewmodels/useTransactionViewModel";
 import { formatDanishDateForInput, KPI_COLORS, KPI_LABELS } from "./shared";
 
@@ -20,12 +23,26 @@ type Props = {
   token: string;
   organisationName: string;
   favorites: string[];
+  userRole: TeamRole;
+  userDepartmentId?: string | null;
 };
 
-export function OverviewTab({ token, organisationName, favorites }: Props) {
+export function OverviewTab({
+  token,
+  organisationName,
+  favorites,
+  userRole,
+  userDepartmentId,
+}: Props) {
   const { transactions, isLoading } = useTransactionViewModel(token, "");
+  const { departments } = useOrganisationViewModel(token);
   const { width: screenWidth } = useWindowDimensions();
   const chartWidth = screenWidth - theme.spacing.xl * 2 - theme.spacing.lg * 2;
+  const isAdmin = userRole === "admin";
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+  const departmentIdForHistory = isAdmin
+    ? selectedDepartmentId || undefined
+    : userDepartmentId || undefined;
 
   const historyFrom = useMemo(() => {
     const d = new Date();
@@ -58,6 +75,7 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
             key,
             historyFrom,
             historyTo,
+            departmentIdForHistory,
           );
           return [key, data] as const;
         } catch {
@@ -74,7 +92,7 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [favorites, token, historyFrom, historyTo]);
+  }, [favorites, token, historyFrom, historyTo, departmentIdForHistory]);
 
   const totalIncome = transactions
     .filter((t) => t.amount > 0)
@@ -151,6 +169,23 @@ export function OverviewTab({ token, organisationName, favorites }: Props) {
       <AppText variant="h4" style={styles.sectionTitle}>
         Mine KPI-grafer
       </AppText>
+
+      {isAdmin && (
+        <DropdownField
+          label="Afdeling"
+          options={[
+            { label: "Hele virksomheden", value: "" },
+            ...departments
+              .filter((department) => department.is_active)
+              .map((department) => ({
+                label: department.name,
+                value: department.id,
+              })),
+          ]}
+          value={selectedDepartmentId}
+          onChange={setSelectedDepartmentId}
+        />
+      )}
 
       {favorites.length === 0 ? (
         <View style={styles.graphHint}>

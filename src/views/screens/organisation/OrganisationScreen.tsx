@@ -136,6 +136,8 @@ export default function OrganisationScreen({
             token={token}
             organisationName={organisationName}
             favorites={favorites}
+            userRole={userRole}
+            userDepartmentId={profile?.department_id}
           />
         )}
         {activeTab === "afdelinger" && userRole !== "employee" && (

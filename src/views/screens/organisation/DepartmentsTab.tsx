@@ -19,6 +19,7 @@ import {
 } from "../../../components"
 import { theme } from "../../../constants/theme"
 import { CategoryType } from "../../../models/categoryModel"
+import { TransactionCostBehavior } from "../../../models/transactionModel"
 import { Department } from "../../../models/departmentModel"
 import { useCategoryViewModel } from "../../../viewmodels/useCategoryViewModel"
 import { useOrganisationViewModel } from "../../../viewmodels/useOrganisationViewModel"
@@ -125,12 +126,14 @@ function TransactionSection({
   const [editAmount, setEditAmount] = useState("")
   const [editDate, setEditDate] = useState("")
   const [editDescription, setEditDescription] = useState("")
+  const [editCostBehavior, setEditCostBehavior] = useState<TransactionCostBehavior>("variable")
 
   const closeEditModal = () => {
     setEditingTransaction(null)
     setEditAmount("")
     setEditDate("")
     setEditDescription("")
+    setEditCostBehavior("variable")
   }
 
   const openEditModal = (transaction: (typeof transactions)[number]) => {
@@ -138,6 +141,7 @@ function TransactionSection({
     setEditAmount(Math.abs(transaction.amount).toString())
     setEditDate(formatDanishDateForInput(transaction.date))
     setEditDescription(transaction.description ?? "")
+    setEditCostBehavior(transaction.cost_behavior ?? "variable")
   }
 
   const handleSaveEdit = async () => {
@@ -151,6 +155,7 @@ function TransactionSection({
         getSignedAmount(parsedAmount, categoryType),
         toIsoDate(editDate),
         editDescription.trim(),
+        categoryType === "expense" ? editCostBehavior : null,
       )
       closeEditModal()
       await onTransactionChanged?.()
@@ -242,9 +247,12 @@ function TransactionSection({
         amount={editAmount}
         date={editDate}
         description={editDescription}
+        costBehavior={editCostBehavior}
+        showCostBehavior={categoryType === "expense"}
         onAmountChange={setEditAmount}
         onDateChange={(value) => setEditDate(formatDanishDateInput(value))}
         onDescriptionChange={setEditDescription}
+        onCostBehaviorChange={setEditCostBehavior}
         onClose={closeEditModal}
         onSave={handleSaveEdit}
       />
@@ -296,11 +304,11 @@ function CategorySection({
     { label: "Skat", value: "tax" },
     { label: "Afskrivning", value: "depreciation" },
   ]
-
   const handleAddCat = async () => {
     if (!catName.trim()) return
     await addCategory(catName.trim(), catType)
     setCatName("")
+    setCatType("expense")
     setShowCatModal(false)
   }
 
@@ -319,7 +327,11 @@ function CategorySection({
   const handleSaveEdit = async () => {
     if (!editingCategory || !editCatName.trim()) return
     try {
-      await updateCategory(editingCategory.id, editCatName.trim(), editCatType)
+      await updateCategory(
+        editingCategory.id,
+        editCatName.trim(),
+        editCatType,
+      )
       closeEditModal()
     } catch {
       // håndteres via error i viewmodel
